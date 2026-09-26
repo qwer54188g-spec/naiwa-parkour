@@ -27233,6 +27233,10 @@ function createGame(canvas, hooks) {
       const z = run.cursor;
       const roll = Math.random();
       const lane = () => Math.random() * 3 | 0;
+      if (crowdsNoodle(z, 8)) {
+        run.lastForced = "";
+        continue;
+      }
       if (!run.shown) {
         run.shown = true;
         spawn("block", "high", 22, 1, 1.05);
@@ -27266,7 +27270,7 @@ function createGame(canvas, hooks) {
         run.lastForced = "low";
         continue;
       }
-      if (roll < 0.74 && band > 40) {
+      if (roll < 0.74 && band > 40 && !crowdsNoodle(z + 26, 10)) {
         const styles = ["oncoming", "oncoming2", "oncoming3"];
         const obj = spawn(styles[Math.random() * 3 | 0], "oncoming", z + 26, lane(), 8);
         obj.half = 0.95;
@@ -27274,7 +27278,7 @@ function createGame(canvas, hooks) {
         run.lastForced = "";
         continue;
       }
-      if (roll < 0.86 && band > 70) {
+      if (roll < 0.86 && band > 70 && !crowdsNoodle(z + 14, 28)) {
         run.cursor = spawnRide(z, lane());
         run.lastForced = "";
         continue;
@@ -27307,11 +27311,26 @@ function createGame(canvas, hooks) {
     const obj = spawn("shroom", "item", z, useLane, 0.8);
     obj.item = "shroom";
   }
+  function noodlePad(z) {
+    return Math.max(18, baseSpeed(z) * 1.25);
+  }
+  function crowdsNoodle(z, len = 1) {
+    const half = Math.max(len, 0) * 0.5;
+    return LYRIC_STOPS.some((stop) => Math.abs(stop.z - z) < noodlePad(stop.z) + half);
+  }
+  function clearAroundNoodle(z) {
+    const pad = noodlePad(z);
+    for (let i = active.length - 1; i >= 0; i -= 1) {
+      const obj = active[i];
+      if (obj.kind === "coin" || obj.item === "noodle") continue;
+      const half = (obj.len || 1) * 0.5;
+      if (Math.abs(obj.z - z) >= pad + half) continue;
+      give(active.splice(i, 1)[0]);
+    }
+  }
   function placeNoodle(stop) {
-    let z = stop.z;
-    const blocked = () => active.some((obj2) => obj2.lane === 1 && Math.abs(obj2.z - z) < 2.4 && obj2.kind !== "coin");
-    while (blocked()) z += 4;
-    const obj = spawn(stop.red ? "noodle-red" : "noodle", "item", z, 1, 0.9);
+    clearAroundNoodle(stop.z);
+    const obj = spawn(stop.red ? "noodle-red" : "noodle", "item", stop.z, 1, 0.9);
     obj.item = "noodle";
     obj.clip = stop;
   }

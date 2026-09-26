@@ -41,10 +41,12 @@ test('无伤每 50 米加 5%', () => {
   assert.ok(Math.abs(comboMultiplier(50) - 1.05) < 1e-9);
 });
 
-test('开局更快，障碍更密', () => {
+test('开局更快，后面不再突然窜', () => {
   assert.equal(baseSpeed(0), 18);
   assert.ok(baseSpeed(80) > baseSpeed(0));
   assert.ok(minSpacing(baseSpeed(0), 0) < 16);
+  assert.ok(baseSpeed(4000) < 29);
+  assert.ok(baseSpeed(480) - baseSpeed(400) < baseSpeed(80) - baseSpeed(0));
 });
 
 test('跳跃能过高栏，第一次撞箱子只绊倒', () => {

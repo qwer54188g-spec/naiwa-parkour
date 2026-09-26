@@ -24935,8 +24935,8 @@ function comboMultiplier(cleanMeters) {
   return 1 + steps * 0.05;
 }
 function baseSpeed(distance) {
-  const steps = Math.floor(Math.max(0, distance) / 80);
-  return 18 * 1.08 ** steps;
+  const d = Math.max(0, distance);
+  return 18 + 10 * (1 - Math.exp(-d / 700));
 }
 function coverDistance(start, seconds) {
   return Math.max(0, start) + baseSpeed(start) * Math.max(0, seconds);
@@ -26363,6 +26363,7 @@ function freshRun() {
     chasePause: 0,
     doubleRest: false,
     cursor: 32,
+    coinAt: 40,
     itemIn: 4,
     poopAt: 180,
     shroomAt: 260,
@@ -26377,8 +26378,8 @@ function createGame(canvas, hooks) {
   renderer.setClearColor("#9fd8f5");
   const scene = new Scene();
   scene.background = new Color("#9fd8f5");
-  scene.fog = new Fog("#b7dff6", 42, 120);
-  const camera = new PerspectiveCamera(58, 1, 0.1, 180);
+  scene.fog = new Fog("#b7dff6", 36, 210);
+  const camera = new PerspectiveCamera(58, 1, 0.1, 280);
   scene.add(new HemisphereLight("#fff4dd", "#c4a06a", 0.82));
   const sun = new DirectionalLight("#fff7ea", 1.05);
   sun.position.set(-4, 10, -6);
@@ -26565,12 +26566,18 @@ function createGame(canvas, hooks) {
     return z + up + car * 2 + down;
   }
   function extendTrack() {
-    const speed = baseSpeed(run.distance + 80) * (run.shoes > 0 ? 1.4 : 1);
-    while (run.cursor < run.z + 95) {
+    const speed = Math.min(32, baseSpeed(run.distance));
+    const horizon = Math.max(170, speed * 5);
+    while (run.cursor < run.z + horizon) {
       let gap = minSpacing(speed, run.distance + (run.cursor - run.z));
       if (run.distance > 600) gap *= 0.92;
-      if (run.lastForced === "high" || run.lastForced === "low") gap += speed * 0.35;
+      if (run.lastForced === "high" || run.lastForced === "low") gap += speed * 0.28;
+      gap = Math.min(gap, 20);
       run.cursor += gap;
+      while (run.coinAt < run.cursor - 6) {
+        coinLine(run.coinAt, Math.random() * 3 | 0);
+        run.coinAt += 20;
+      }
       while (run.poopAt < run.cursor - 6) {
         placePoop(run.poopAt, Math.random() * 3 | 0);
         run.poopAt += 210;
@@ -26765,12 +26772,16 @@ function createGame(canvas, hooks) {
     run.itemIn -= dt;
     if (run.itemIn > 0) return;
     const late = Math.min(run.distance / 600, 1);
-    run.itemIn = 5 + late * 3 + Math.random() * 2;
-    const name = rollItem(run.distance, Math.random);
-    const z = run.z + 28 + Math.random() * 10;
+    const lead = Math.max(64, baseSpeed(run.distance) * 2.4);
+    const z = run.z + lead;
     const lane = Math.random() * 3 | 0;
     const blocked = active.some((obj) => obj.kind !== "coin" && obj.lane === lane && Math.abs(obj.z - z) < 2.4);
-    if (blocked) return;
+    if (blocked) {
+      run.itemIn = 0.35;
+      return;
+    }
+    run.itemIn = 4.5 + late * 2 + Math.random() * 1.5;
+    const name = rollItem(run.distance, Math.random);
     spawn(name, "item", z, lane, 0.8);
     active[active.length - 1].item = name;
   }
@@ -27005,8 +27016,8 @@ function createGame(canvas, hooks) {
     const arc = run.fly > 0 ? Math.max(3.4, hop) : hop;
     const jump = arc;
     const stumbleMul = run.stumble > 0 ? 0.62 : 1;
-    const shoeMul = run.shoes > 0 ? 1.4 : 1;
-    const step = speed * stumbleMul * shoeMul * dt;
+    const shoeMul = run.shoes > 0 ? 1.18 : 1;
+    const step = Math.min(speed, 30) * stumbleMul * shoeMul * dt;
     run.z += step;
     run.distance += step;
     run.clean += step;

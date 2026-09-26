@@ -28,10 +28,10 @@ export function comboMultiplier(cleanMeters) {
   return 1 + steps * 0.05;
 }
 
-/** 开局再快一档，之后每 80 米继续加快。 */
+/** 开局就快，后面缓缓加快，不再一档一档突然窜上去。 */
 export function baseSpeed(distance) {
-  const steps = Math.floor(Math.max(0, distance) / 80);
-  return 18 * 1.08 ** steps;
+  const d = Math.max(0, distance);
+  return 18 + 10 * (1 - Math.exp(-d / 700));
 }
 
 /** 按这一碗所在位置的跑速，唱完 seconds 秒大概能跑多远。 */

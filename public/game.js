@@ -24935,12 +24935,12 @@ function comboMultiplier(cleanMeters) {
   return 1 + steps * 0.05;
 }
 function baseSpeed(distance) {
-  const steps = Math.floor(Math.max(0, distance) / 100);
-  return 12 * 1.05 ** steps;
+  const steps = Math.floor(Math.max(0, distance) / 80);
+  return 14.5 * 1.08 ** steps;
 }
 function minSpacing(speed, distance) {
-  const reaction = 0.98 - Math.min(Math.max(distance, 0) / 1200, 1) * 0.3;
-  return Math.max(11, speed * reaction);
+  const reaction = 0.78 - Math.min(Math.max(distance, 0) / 900, 1) * 0.26;
+  return Math.max(8.2, speed * reaction);
 }
 function resolveCollision(player, kind) {
   const star = player.inv > 0 || player.fly > 0;
@@ -24973,14 +24973,14 @@ function chaserMood(gap) {
   return "safe";
 }
 function stepChaser(gap, speed, dt, playerSpeed, distance, options) {
-  const pressure = Math.min(Math.max(distance, 0) / 900, 1);
-  const targetGap = 17 - pressure * 8;
+  const pressure = Math.min(Math.max(distance, 0) / 700, 1);
+  const targetGap = 11 - pressure * 6;
   const cruise = options.cruise ?? playerSpeed;
   const slow = Math.max(0, cruise - playerSpeed);
-  let desired = playerSpeed + slow * 0.8 + (gap - targetGap) * 0.4;
-  if (options.sprint) desired += 4.2;
+  let desired = playerSpeed + slow * 0.85 + (gap - targetGap) * 0.55;
+  if (options.sprint) desired += 5;
   if (options.smoked) desired = Math.min(desired, playerSpeed * 0.82);
-  const accel = options.smoked ? 3 : 7.5;
+  const accel = options.smoked ? 3 : 8.5;
   const delta = Math.max(-accel * dt, Math.min(accel * dt, desired - speed));
   const nextSpeed = Math.max(0, speed + delta);
   let nextGap = gap + (playerSpeed - nextSpeed) * dt;
@@ -24996,15 +24996,15 @@ function buyKey(coins, keys, price = KEY_PRICE) {
   return { coins: wallet - price, keys: owned + 1, ok: true };
 }
 var ITEM_TABLE = [
-  ["magnet", 28],
-  ["shoes", 16],
+  ["magnet", 22],
+  ["shoes", 14],
   ["star", 8],
   ["smoke", 8],
   ["double", 8],
   ["jet", 8],
   ["key", 6],
-  ["chest", 10],
-  ["poop", 12]
+  ["chest", 8],
+  ["poop", 36]
 ];
 function rollItem(distance, rand) {
   const late = Math.min(Math.max(distance, 0) / 500, 1);
@@ -25019,7 +25019,7 @@ function rollItem(distance, rand) {
     cursor -= weight;
     if (cursor <= 0) return name;
   }
-  return "magnet";
+  return "poop";
 }
 function itemDuration(name) {
   if (name === "magnet") return 8;
@@ -25371,7 +25371,8 @@ function poop() {
   const crease = new Mesh(new SphereGeometry(0.08, 10, 8), dark);
   crease.position.set(-0.16, 0.46, 0.22);
   group.add(base, mid, top, curl, crease);
-  group.userData.baseY = 0;
+  group.scale.setScalar(1.55);
+  group.userData.baseY = 1.2;
   return group;
 }
 function coin() {
@@ -25686,7 +25687,7 @@ function freshRun() {
     smoke: 0,
     doubleT: 0,
     stumble: 0,
-    gap: 16.5,
+    gap: 12,
     chaserSpeed: 12,
     sprintCd: 6,
     sprintT: 0,
@@ -25702,7 +25703,8 @@ function freshRun() {
     chasePause: 0,
     doubleRest: false,
     cursor: 32,
-    itemIn: 6,
+    itemIn: 4,
+    poopAt: 30,
     lastForced: "",
     shown: false
   };
@@ -25859,21 +25861,25 @@ function createGame(canvas, hooks) {
     const speed = baseSpeed(run.distance + 80) * (run.shoes > 0 ? 1.4 : 1);
     while (run.cursor < run.z + 95) {
       let gap = minSpacing(speed, run.distance + (run.cursor - run.z));
-      if (run.distance > 3e3) gap *= 0.62;
+      if (run.distance > 600) gap *= 0.78;
       if (run.lastForced === "high" || run.lastForced === "low") gap += speed * 0.35;
       run.cursor += gap;
+      while (run.poopAt < run.cursor - 6) {
+        placePoop(run.poopAt, Math.random() * 3 | 0);
+        run.poopAt += 38;
+      }
       const z = run.cursor;
       const roll = Math.random();
       const lane = () => Math.random() * 3 | 0;
       if (!run.shown) {
         run.shown = true;
         spawn("block", "high", 22, 1, 1.05);
-        spawn("arch", "low", 42, 1, 0.72);
-        run.cursor = spawnRide(60, 1);
+        spawn("arch", "low", 36, 1, 0.72);
+        run.cursor = spawnRide(48, 1);
         run.lastForced = "";
         continue;
       }
-      if (roll < 0.16) {
+      if (roll < 0.08) {
         coinLine(z, lane());
         run.lastForced = "";
         continue;
@@ -25898,7 +25904,7 @@ function createGame(canvas, hooks) {
         run.lastForced = "low";
         continue;
       }
-      if (roll < 0.74 && band > 80) {
+      if (roll < 0.74 && band > 40) {
         const styles = ["oncoming", "oncoming2", "oncoming3"];
         const obj = spawn(styles[Math.random() * 3 | 0], "oncoming", z + 26, lane(), 8);
         obj.half = 0.95;
@@ -25906,19 +25912,19 @@ function createGame(canvas, hooks) {
         run.lastForced = "";
         continue;
       }
-      if (roll < 0.86 && band > 120) {
+      if (roll < 0.86 && band > 70) {
         run.cursor = spawnRide(z, lane());
         run.lastForced = "";
         continue;
       }
-      if (roll < 0.93 && band > 180) {
+      if (roll < 0.93 && band > 90) {
         const open = lane();
         for (let i = 0; i < 3; i += 1) if (i !== open) spawn("pit", "pit", z, i, 2.4);
         coinLine(z + 3.2, open);
         run.lastForced = "fatal";
         continue;
       }
-      if (band > 160) {
+      if (band > 50) {
         spawn("truck", "fatal", z, lane(), 5.2);
         run.lastForced = "fatal";
         continue;
@@ -25927,11 +25933,17 @@ function createGame(canvas, hooks) {
       run.lastForced = "";
     }
   }
+  function placePoop(z, lane) {
+    const taken = active.some((obj2) => obj2.lane === lane && Math.abs(obj2.z - z) < 2.2 && obj2.kind !== "coin");
+    const useLane = taken ? (lane + 1) % 3 : lane;
+    const obj = spawn("poop", "item", z, useLane, 0.8);
+    obj.item = "poop";
+  }
   function maybeItem(dt) {
     run.itemIn -= dt;
     if (run.itemIn > 0) return;
     const late = Math.min(run.distance / 600, 1);
-    run.itemIn = 8 + late * 7 + Math.random() * 4;
+    run.itemIn = 5 + late * 3 + Math.random() * 2;
     const name = rollItem(run.distance, Math.random);
     const z = run.z + 28 + Math.random() * 10;
     const lane = Math.random() * 3 | 0;

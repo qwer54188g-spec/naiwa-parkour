@@ -89,7 +89,7 @@
       #hint {
         position: fixed;
         left: 12px;
-        right: 96px;
+        right: 110px;
         bottom: calc(18px + env(safe-area-inset-bottom));
         text-align: center;
         font-weight: 800;
@@ -263,7 +263,7 @@
         align-items: flex-end;
       }
       #uses button {
-        width: 74px;
+        width: 84px;
         height: 74px;
         min-height: 74px;
         padding: 6px;
@@ -295,6 +295,7 @@
     <audio id="tao-death" preload="auto" src="assets/tao-death.m4a"></audio>
     <audio id="tao-boost" preload="auto" src="assets/tao-boost.m4a"></audio>
     <div id="uses">
+      <button id="use-scooter" type="button">电瓶车</button>
       <button id="use-boost" type="button">话筒</button>
       <button id="use-jet" type="button">飞行</button>
     </div>
@@ -346,6 +347,13 @@
             <button id="buy-boost" type="button">购买</button>
             <p class="buy-note" id="boost-note"></p>
           </div>
+          <div class="good">
+            <strong>电瓶车</strong>
+            <span class="price">300<small>金币</small></span>
+            <span class="note">肥嘟嘟袋鼠骑上约 20 秒不会死，并放「你的胆子真是肥嘟嘟的」</span>
+            <button id="buy-scooter" type="button">购买</button>
+            <p class="buy-note" id="scooter-note"></p>
+          </div>
         </div>
       </div>
     </div>
@@ -367,6 +375,6 @@
         <button id="again" class="ghost" type="button">再来一次</button>
       </div>
     </section>
-    <script type="module" src="./game.js?v=39"></script>
+    <script type="module" src="./game.js?v=40"></script>
   </body>
 </html>

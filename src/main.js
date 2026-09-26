@@ -1,6 +1,6 @@
 import { createAudio } from './audio.js';
 import { createGame } from './game.js';
-import { BOOST_PRICE, JET_PRICE, KEY_PRICE, swipeDirection } from './rules.js';
+import { BOOST_PRICE, JET_PRICE, KEY_PRICE, SCOOTER_PRICE, swipeDirection } from './rules.js';
 
 const audio = createAudio();
 const laugh = document.querySelector('#laugh');
@@ -43,8 +43,10 @@ const reviveBtn = document.querySelector('#revive');
 const buyBtn = document.querySelector('#buy');
 const buyJetBtn = document.querySelector('#buy-jet');
 const buyBoostBtn = document.querySelector('#buy-boost');
+const buyScooterBtn = document.querySelector('#buy-scooter');
 const useJetBtn = document.querySelector('#use-jet');
 const useBoostBtn = document.querySelector('#use-boost');
+const useScooterBtn = document.querySelector('#use-scooter');
 const shopOpenBtn = document.querySelector('#shop-open');
 const store = document.querySelector('#store');
 const storeCloseBtn = document.querySelector('#store-close');
@@ -52,6 +54,7 @@ const walletLine = document.querySelector('#wallet');
 const buyNote = document.querySelector('#buy-note');
 const jetNote = document.querySelector('#jet-note');
 const boostNote = document.querySelector('#boost-note');
+const scooterNote = document.querySelector('#scooter-note');
 const vignette = document.querySelector('#vignette');
 
 const titles = {
@@ -63,20 +66,25 @@ const titles = {
 
 function paintShop() {
   const pocket = game.wallet();
-  walletLine.textContent = `金币 ${pocket.coins} · 钥匙 ${pocket.keys} · 飞行 ${pocket.jets} · 加速 ${pocket.boosts}`;
+  walletLine.textContent = `金币 ${pocket.coins} · 钥匙 ${pocket.keys} · 飞行 ${pocket.jets} · 加速 ${pocket.boosts} · 电瓶车 ${pocket.scooters}`;
   const keyEnough = pocket.coins >= KEY_PRICE;
   const jetEnough = pocket.coins >= JET_PRICE;
   const boostEnough = pocket.coins >= BOOST_PRICE;
+  const scooterEnough = pocket.coins >= SCOOTER_PRICE;
   buyBtn.disabled = !keyEnough;
   buyJetBtn.disabled = !jetEnough;
   buyBoostBtn.disabled = !boostEnough;
+  buyScooterBtn.disabled = !scooterEnough;
   buyNote.textContent = keyEnough ? '' : '金币不够';
   jetNote.textContent = jetEnough ? '' : '金币不够';
   boostNote.textContent = boostEnough ? '' : '金币不够';
+  scooterNote.textContent = scooterEnough ? '' : '金币不够';
   useJetBtn.textContent = `飞行 ${pocket.jets}`;
   useJetBtn.classList.toggle('on', playing && pocket.jets > 0);
   useBoostBtn.textContent = `话筒 ${pocket.boosts}`;
   useBoostBtn.classList.toggle('on', playing && pocket.boosts > 0);
+  useScooterBtn.textContent = `电瓶车 ${pocket.scooters}`;
+  useScooterBtn.classList.toggle('on', playing && game.hero() === 'dudu' && pocket.scooters > 0);
 }
 
 function paintCast() {
@@ -206,6 +214,8 @@ const game = createGame(document.querySelector('#view'), {
     useJetBtn.classList.toggle('on', playing && hud.jets > 0);
     useBoostBtn.textContent = `话筒 ${hud.boosts}`;
     useBoostBtn.classList.toggle('on', playing && hud.boosts > 0);
+    useScooterBtn.textContent = `电瓶车 ${hud.scooters}`;
+    useScooterBtn.classList.toggle('on', playing && hud.hero === 'dudu' && hud.scooters > 0);
   },
   onChuckle() {
     if (shroomTalk || noodleTalk || game.hero() === 'tao') return;
@@ -310,6 +320,7 @@ const game = createGame(document.querySelector('#view'), {
     document.body.classList.add('ending');
     useJetBtn.classList.remove('on');
     useBoostBtn.classList.remove('on');
+    useScooterBtn.classList.remove('on');
   },
   onDeathLaugh() {
     const hero = game.hero();
@@ -453,6 +464,10 @@ buyBoostBtn.addEventListener('click', () => {
   game.buyBoost();
   paintShop();
 });
+buyScooterBtn.addEventListener('click', () => {
+  game.buyScooter();
+  paintShop();
+});
 useJetBtn.addEventListener('click', () => {
   if (!game.useJet()) return;
   paintShop();
@@ -474,6 +489,19 @@ useBoostBtn.addEventListener('click', () => {
     if (pending && typeof pending.catch === 'function') pending.catch((error) => console.warn('naiwa.boost', error));
   } catch (error) {
     console.warn('naiwa.boost', error);
+  }
+  paintShop();
+});
+useScooterBtn.addEventListener('click', () => {
+  if (!game.useScooter()) return;
+  silenceVoices();
+  duduLine.loop = false;
+  try {
+    duduLine.currentTime = 0;
+    const pending = duduLine.play();
+    if (pending && typeof pending.catch === 'function') pending.catch((error) => console.warn('naiwa.scooter', error));
+  } catch (error) {
+    console.warn('naiwa.scooter', error);
   }
   paintShop();
 });

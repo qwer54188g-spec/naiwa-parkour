@@ -10,6 +10,8 @@ import {
   itemDuration,
   BOOST_PRICE,
   JET_PRICE,
+  SCOOTER_PRICE,
+  SCOOTER_TIME,
   resolveCollision,
   rollItem,
   stepChaser,
@@ -19,7 +21,10 @@ import {
 test('飞行 300，加速话筒 500', () => {
   assert.equal(JET_PRICE, 300);
   assert.equal(BOOST_PRICE, 500);
+  assert.equal(SCOOTER_PRICE, 300);
+  assert.equal(SCOOTER_TIME, 20);
   assert.equal(buyKey(500, 0, BOOST_PRICE).ok, true);
+  assert.equal(buyKey(300, 0, SCOOTER_PRICE).ok, true);
   assert.equal(buyKey(299, 0, JET_PRICE).ok, false);
 });
 

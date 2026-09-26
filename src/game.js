@@ -8,6 +8,8 @@ import {
   clampLane,
   BOOST_PRICE,
   JET_PRICE,
+  SCOOTER_PRICE,
+  SCOOTER_TIME,
   buyKey,
   comboMultiplier,
   itemDuration,
@@ -51,6 +53,7 @@ const COIN_KEY = 'naiwa-coins';
 const HERO_KEY = 'naiwa-hero';
 const JET_KEY = 'naiwa-jets';
 const BOOST_KEY = 'naiwa-boosts';
+const SCOOTER_KEY = 'naiwa-scooters';
 
 function readBest() {
   try {
@@ -126,6 +129,24 @@ function writeBoosts(count) {
   }
 }
 
+function readScooters() {
+  try {
+    const value = Number(localStorage.getItem(SCOOTER_KEY) || 0);
+    return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+  } catch (error) {
+    console.warn('naiwa.scooters', error);
+    return 0;
+  }
+}
+
+function writeScooters(count) {
+  try {
+    localStorage.setItem(SCOOTER_KEY, String(Math.max(0, Math.floor(count))));
+  } catch (error) {
+    console.warn('naiwa.scooters', error);
+  }
+}
+
 function ensureMicGift() {
   try {
     if (localStorage.getItem('naiwa-mic-gift') === '1') return;
@@ -185,6 +206,7 @@ function buildMesh(type) {
   if (type === 'high-lane') return wall(false);
   if (type === 'low-all') return arch(true);
   if (type === 'low-lane') return arch(false);
+  if (type === 'hurdle') return hurdle();
   if (type === 'arch') return arch(false);
   if (type === 'block') return rock();
   if (type === 'truck') return truck();
@@ -225,6 +247,24 @@ function box(w, h, d, color, y) {
   mesh.position.y = y;
   mesh.userData.baseY = y;
   return mesh;
+}
+
+function hurdle() {
+  const group = new THREE.Group();
+  const wood = mat('#c9843f', { roughness: 0.62 });
+  const tape = mat('#f2c14e', { roughness: 0.4 });
+  for (const x of [-0.72, 0.72]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.72, 0.1), wood);
+    post.position.set(x, 0.36, 0);
+    group.add(post);
+  }
+  for (const y of [0.28, 0.52]) {
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.08, 0.08), y > 0.4 ? tape : wood);
+    rail.position.y = y;
+    group.add(rail);
+  }
+  group.userData.baseY = 0;
+  return group;
 }
 
 function wall(wide) {
@@ -313,40 +353,71 @@ function carriage(style, lifted) {
   const stripe = new THREE.Mesh(new THREE.BoxGeometry(1.96, 0.16, 7.05), mat(style === 1 ? '#f0d78c' : stripeColor));
   stripe.position.y = bodyY - tall * 0.18;
   group.add(body, roof, nose, stripe);
+  const skirt = new THREE.Mesh(new THREE.BoxGeometry(1.72, 0.28, 6.4), mat('#1a1816', { roughness: 0.8 }));
+  skirt.position.y = Math.max(0.22, bodyY - tall * 0.5 - 0.02);
+  const seam = mat('#2c2824', { roughness: 0.7 });
+  group.add(skirt);
+  for (const z of [-1.7, 1.7]) {
+    const line = new THREE.Mesh(new THREE.BoxGeometry(1.94, tall * 0.92, 0.045), seam);
+    line.position.set(0, bodyY, z);
+    group.add(line);
+  }
   const pane = mat(glass, { roughness: 0.18, metalness: 0.08 });
-  const frame = mat('#2a2622');
+  const frame = mat('#1c1916');
+  const sillMat = mat('#d9d3c8', { roughness: 0.45 });
   for (const side of [-1, 1]) {
     for (let i = -2; i <= 2; i += 1) {
       if (i === 0) continue;
-      const win = new THREE.Mesh(new THREE.BoxGeometry(0.06, tall * 0.34, 0.72), pane);
-      win.position.set(side * 0.98, bodyY + tall * 0.08, i * 1.15);
-      const rim = new THREE.Mesh(new THREE.BoxGeometry(0.07, tall * 0.4, 0.84), frame);
-      rim.position.copy(win.position);
-      group.add(rim, win);
+      const win = new THREE.Mesh(new THREE.BoxGeometry(0.05, tall * 0.32, 0.62), pane);
+      win.position.set(side * 0.99, bodyY + tall * 0.1, i * 1.15);
+      const rim = new THREE.Mesh(new THREE.BoxGeometry(0.04, tall * 0.4, 0.78), frame);
+      rim.position.set(side * 0.97, win.position.y, win.position.z);
+      const sill = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.04, 0.78), sillMat);
+      sill.position.set(side * 1.0, win.position.y - tall * 0.2, win.position.z);
+      group.add(rim, win, sill);
     }
-    const door = new THREE.Mesh(new THREE.BoxGeometry(0.07, tall * 0.62, 0.7), mat('#241e1a'));
-    door.position.set(side * 0.98, bodyY - tall * 0.08, 0);
-    group.add(door);
+    const door = new THREE.Mesh(new THREE.BoxGeometry(0.05, tall * 0.58, 0.62), mat('#241e1a'));
+    door.position.set(side * 0.99, bodyY - tall * 0.1, 0);
+    const doorWin = new THREE.Mesh(new THREE.BoxGeometry(0.04, tall * 0.16, 0.28), pane);
+    doorWin.position.set(side * 1.01, bodyY + tall * 0.08, 0);
+    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.08, 0.03), sillMat);
+    handle.position.set(side * 1.02, bodyY - tall * 0.05, 0.18);
+    group.add(door, doorWin, handle);
+  }
+  const ventMat = mat('#3a342f', { roughness: 0.55 });
+  for (const z of [-2.2, 2.2]) {
+    const vent = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.12, 0.42), ventMat);
+    vent.position.set(0.45, roof.position.y + 0.08, z);
+    group.add(vent);
   }
   if (!lifted) {
-    const wheel = new THREE.CylinderGeometry(0.28, 0.28, 0.18, 12);
+    const wheel = new THREE.CylinderGeometry(0.22, 0.22, 0.16, 14);
     const rubber = mat('#241c18');
-    for (const z of [-2.35, 2.35]) {
-      for (const x of [-0.92, 0.92]) {
+    const bogieMat = mat('#2a2622');
+    for (const z of [-2.15, 2.15]) {
+      const bogie = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.12, 1.15), bogieMat);
+      bogie.position.set(0, 0.18, z);
+      group.add(bogie);
+      for (const x of [-0.78, 0.78]) {
         const w = new THREE.Mesh(wheel, rubber);
         w.rotation.z = Math.PI / 2;
-        w.position.set(x, 0.28, z);
+        w.position.set(x, 0.22, z);
         group.add(w);
       }
     }
-  } else {
-    const lamp = mat('#fff4c8', { emissive: '#fff1b0', emissiveIntensity: 0.7 });
-    for (const x of [-0.55, 0.55]) {
-      const light = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), lamp);
-      light.position.set(x, bodyY - tall * 0.05, -3.7);
-      group.add(light);
-    }
   }
+  const lamp = mat('#fff4c8', { emissive: '#fff1b0', emissiveIntensity: 0.85 });
+  const tail = mat('#e23b2f', { emissive: '#c42822', emissiveIntensity: 0.55 });
+  for (const x of [-0.55, 0.55]) {
+    const light = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.06), lamp);
+    light.position.set(x, bodyY + tall * 0.05, -3.66);
+    const red = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.08, 0.05), tail);
+    red.position.set(x, bodyY + tall * 0.05, 3.62);
+    group.add(light, red);
+  }
+  const coupler = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.22), mat('#4a433c'));
+  coupler.position.set(0, Math.max(0.28, bodyY - tall * 0.42), 3.68);
+  group.add(coupler);
   group.userData.baseY = 0;
   group.userData.unit = 7.4;
   group.userData.roof = roof.position.y + 0.06;
@@ -354,8 +425,9 @@ function carriage(style, lifted) {
 }
 
 function wedge() {
+  const group = new THREE.Group();
   const geo = new THREE.BufferGeometry();
-  const hw = 1.12;
+  const hw = 1.05;
   const y0 = 0;
   const y1 = 1;
   const z0 = -0.5;
@@ -372,9 +444,21 @@ function wedge() {
   ]);
   geo.setAttribute('position', new THREE.BufferAttribute(data, 3));
   geo.computeVertexNormals();
-  const mesh = new THREE.Mesh(geo, mat('#c9843f'));
-  mesh.userData.baseY = 0;
-  return mesh;
+  const deck = new THREE.Mesh(geo, mat('#9aa3ad', { roughness: 0.42, metalness: 0.25 }));
+  const caution = mat('#e2b43a', { roughness: 0.4 });
+  const steel = mat('#5c656e', { roughness: 0.35, metalness: 0.35 });
+  const start = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.06, 0.07), caution);
+  start.position.set(0, 0.04, -0.47);
+  const end = start.clone();
+  end.position.set(0, 0.96, 0.46);
+  for (const x of [-1.02, 1.02]) {
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.1, 1), steel);
+    rail.position.set(x, 0.08, 0);
+    group.add(rail);
+  }
+  group.add(deck, start, end);
+  group.userData.baseY = 0;
+  return group;
 }
 
 function pit() {
@@ -511,6 +595,45 @@ function makeMic() {
   held.add(grille, cap, ring, handle, band);
   mic.add(held);
   return mic;
+}
+
+function makeScooter() {
+  const bike = new THREE.Group();
+  bike.name = 'scooter';
+  bike.visible = false;
+  const shell = mat('#f7f4ee', { roughness: 0.42 });
+  const dark = mat('#1c2128', { roughness: 0.55 });
+  const juice = mat('#3ecf8e', { roughness: 0.38, emissive: '#1f8f5a', emissiveIntensity: 0.18 });
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.05, 0.92), shell);
+  deck.position.set(0, 0.2, -0.02);
+  const pack = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.1, 0.3), juice);
+  pack.position.set(0, 0.27, 0.16);
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.028, 0.52, 8), dark);
+  stem.position.set(0, 0.46, -0.4);
+  stem.rotation.x = 0.28;
+  const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.46, 8), dark);
+  bar.rotation.z = Math.PI / 2;
+  bar.position.set(0, 0.68, -0.5);
+  const gripMat = mat('#22262c', { roughness: 0.7 });
+  const gripL = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.1, 8), gripMat);
+  gripL.rotation.z = Math.PI / 2;
+  gripL.position.set(-0.22, 0.68, -0.5);
+  const gripR = gripL.clone();
+  gripR.position.x = 0.22;
+  const tires = [];
+  for (const z of [0.32, -0.4]) {
+    const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.05, 14), dark);
+    tire.rotation.z = Math.PI / 2;
+    tire.position.set(0, 0.15, z);
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.06, 8), shell);
+    hub.rotation.z = Math.PI / 2;
+    hub.position.copy(tire.position);
+    bike.add(tire, hub);
+    tires.push(tire);
+  }
+  bike.add(deck, pack, stem, bar, gripL, gripR);
+  bike.userData.tires = tires;
+  return bike;
 }
 
 function coin() {
@@ -977,41 +1100,95 @@ function clearGroup(group) {
   }
 }
 
+function gableRoof(width, rise, depth, color) {
+  const hw = width * 0.5;
+  const hd = depth * 0.5;
+  const geo = new THREE.BufferGeometry();
+  const data = new Float32Array([
+    -hw, 0, -hd, hw, 0, -hd, 0, rise, -hd,
+    -hw, 0, hd, 0, rise, hd, hw, 0, hd,
+    -hw, 0, -hd, 0, rise, -hd, 0, rise, hd,
+    -hw, 0, -hd, 0, rise, hd, -hw, 0, hd,
+    hw, 0, -hd, hw, 0, hd, 0, rise, hd,
+    hw, 0, -hd, 0, rise, hd, 0, rise, -hd,
+  ]);
+  geo.setAttribute('position', new THREE.BufferAttribute(data, 3));
+  geo.computeVertexNormals();
+  return new THREE.Mesh(geo, mat(color, { roughness: 0.72 }));
+}
+
 function streetFacade(side, seed, z) {
   const styles = [
-    { wall: '#f4e3c8', roof: '#c45c4a', trim: '#e07a5f', floors: 2 },
-    { wall: '#ead7c3', roof: '#8d4a3a', trim: '#f2c14e', floors: 3 },
-    { wall: '#d9e6ee', roof: '#3d6e8c', trim: '#f7f7f4', floors: 2 },
-    { wall: '#f6d7a2', roof: '#8c5a3c', trim: '#6b8f71', floors: 1 },
-    { wall: '#efe8df', roof: '#5c6b73', trim: '#e8b84a', floors: 3 },
-    { wall: '#f3e6d8', roof: '#b85c38', trim: '#fffaf0', floors: 2 },
+    { wall: '#f3e2cc', shop: '#c45c4a', roof: '#8d4034', trim: '#f2c14e', floors: 2 },
+    { wall: '#e7d3be', shop: '#6d4a38', roof: '#6a4038', trim: '#e8d7b0', floors: 3 },
+    { wall: '#d5e3ec', shop: '#3d6e8c', roof: '#314e63', trim: '#f7f7f4', floors: 2 },
+    { wall: '#f6d7a2', shop: '#8c5a3c', roof: '#6b4630', trim: '#6b8f71', floors: 1 },
+    { wall: '#efe6da', shop: '#5c6b73', roof: '#3e4a52', trim: '#e8b84a', floors: 3 },
+    { wall: '#f7e6d4', shop: '#b85c38', roof: '#8a3e2c', trim: '#fff6ea', floors: 2 },
   ];
   const theme = styles[Math.abs(seed) % styles.length];
   const group = new THREE.Group();
-  const height = 2.2 + theme.floors * 1.05;
-  const depth = 5.2;
-  const body = new THREE.Mesh(new THREE.BoxGeometry(2.7, height, depth), mat(theme.wall, { roughness: 0.78 }));
-  body.position.set(side * 9.2, height * 0.5, z);
-  const roof = new THREE.Mesh(new THREE.BoxGeometry(3, 0.24, depth + 0.25), mat(theme.roof));
-  roof.position.set(side * 9.2, height + 0.1, z);
-  const awning = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.08, 1.6), mat(theme.trim));
-  awning.position.set(side * 7.8, 1.55, z - 1.2);
-  const door = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.2, 0.62), mat('#3a2a22'));
-  door.position.set(side * 7.82, 0.62, z - 1.2);
-  const sign = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.42, 0.9), mat(theme.trim));
-  sign.position.set(side * 7.78, 2.15, z - 1.2);
-  group.add(body, roof, awning, door, sign);
-  const glass = mat('#d5e7f2', { roughness: 0.2 });
+  const height = 2.15 + theme.floors * 1.02;
+  const depth = 5.1;
+  const x = side * 9.15;
+  const face = side * 7.72;
+  const wall = mat(theme.wall, { roughness: 0.86 });
+  const shopMat = mat(theme.shop, { roughness: 0.72 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(2.55, height - 1.15, depth), wall);
+  body.position.set(x, 1.15 + (height - 1.15) * 0.5, z);
+  const shop = new THREE.Mesh(new THREE.BoxGeometry(2.62, 1.2, depth + 0.08), shopMat);
+  shop.position.set(x - side * 0.04, 0.6, z);
+  const roof = gableRoof(2.9, 0.72, depth + 0.35, theme.roof);
+  roof.position.set(x, height, z);
+  const eave = new THREE.Mesh(new THREE.BoxGeometry(2.95, 0.08, depth + 0.4), mat(theme.roof, { roughness: 0.6 }));
+  eave.position.set(x, height, z);
+  group.add(body, shop, roof, eave);
+  const trim = mat(theme.trim, { roughness: 0.5 });
+  const band = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, depth), trim);
+  band.position.set(face, 1.18, z);
+  group.add(band);
+  for (const oz of [-depth * 0.46, depth * 0.46]) {
+    const pier = new THREE.Mesh(new THREE.BoxGeometry(0.12, height, 0.16), mat('#efe6da', { roughness: 0.8 }));
+    pier.position.set(face + side * 0.02, height * 0.5, z + oz);
+    group.add(pier);
+  }
+  const step = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.08, 0.7), mat('#cfc4b4', { roughness: 0.9 }));
+  step.position.set(face - side * 0.12, 0.04, z - 1.15);
+  const door = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.05, 0.52), mat('#2a211c'));
+  door.position.set(face, 0.58, z - 1.15);
+  const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.18, 0.66), trim);
+  doorFrame.position.set(face + side * 0.02, 0.6, z - 1.15);
+  const awning = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.05, 1.7), trim);
+  awning.position.set(face - side * 0.28, 1.42, z - 1.15);
+  group.add(step, doorFrame, door, awning);
+  const glass = mat('#d7e8f2', { roughness: 0.15, metalness: 0.05 });
+  const frame = mat('#2c2824', { roughness: 0.6 });
   for (let row = 0; row < theme.floors; row += 1) {
     for (let col = 0; col < 2; col += 1) {
-      const win = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.55, 0.7), glass);
-      win.position.set(side * 7.82, 1.05 + row * 1.05, z + 0.4 + col * 1.35);
-      group.add(win);
+      const wy = 1.7 + row * 1.02;
+      const wz = z + 0.35 + col * 1.4;
+      const winFrame = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.62, 0.78), frame);
+      winFrame.position.set(face + side * 0.02, wy, wz);
+      const win = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.48, 0.58), glass);
+      win.position.set(face - side * 0.02, wy, wz);
+      const sill = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.05, 0.78), mat('#f4efe6', { roughness: 0.7 }));
+      sill.position.set(face - side * 0.04, wy - 0.32, wz);
+      group.add(winFrame, win, sill);
     }
   }
+  if (theme.floors > 1) {
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.05, 1.5), mat('#d9cbb8', { roughness: 0.75 }));
+    deck.position.set(face - side * 0.16, 2.15, z + 1.2);
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.28, 1.5), mat('#4a4038'));
+    rail.position.set(face - side * 0.34, 2.32, z + 1.2);
+    group.add(deck, rail);
+  }
+  const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, height, 6), mat('#8a847c', { metalness: 0.35, roughness: 0.4 }));
+  pipe.position.set(x + side * 0.2, height * 0.5, z + depth * 0.42);
+  group.add(pipe);
   if (theme.floors > 2) {
-    const chimney = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.7, 0.28), mat('#6a4038'));
-    chimney.position.set(side * 8.6, height + 0.45, z + 1.4);
+    const chimney = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.55, 0.22), mat('#6a4038', { roughness: 0.85 }));
+    chimney.position.set(x + side * 0.4, height + 0.85, z + 1.2);
     group.add(chimney);
   }
   return group;
@@ -1145,6 +1322,7 @@ function freshRun() {
     shroom: 0,
     noodle: 0,
     boost: 0,
+    scooter: 0,
     board: 0,
     chasePause: 0,
     doubleRest: false,
@@ -1203,6 +1381,7 @@ export function createGame(canvas, hooks) {
   let playerMats = [];
   let playerRig = null;
   let playerMic = null;
+  let playerScooter = null;
   let chaserRig = null;
   let modelReady = false;
   let heroId = readHero();
@@ -1267,6 +1446,8 @@ export function createGame(canvas, hooks) {
     player.add(playerRig.root);
     playerMic = makeMic();
     playerRig.root.add(playerMic);
+    playerScooter = makeScooter();
+    playerRig.root.add(playerScooter);
     chaser.add(chaserRig.root);
     const hat = makeHat();
     hat.position.y = villainBox.max.y + 0.02;
@@ -1335,21 +1516,24 @@ export function createGame(canvas, hooks) {
   function spawnRide(z, lane) {
     const roof = 1.72;
     const up = 7;
-    const trainLen = 14;
+    const car = 7.2;
     const down = 6;
     const styles = ['train', 'train2', 'train3'];
-    const train = spawn(styles[(Math.random() * 3) | 0], 'train', z + up + trainLen / 2, lane, trainLen);
-    const top = train.mesh.userData.roof || roof;
-    train.roof = top;
-    train.half = 0.95;
-    train.mesh.scale.z = trainLen / 7.4;
+    const style = styles[(Math.random() * 3) | 0];
+    const front = spawn(style, 'train', z + up + car * 0.5, lane, car);
+    const back = spawn(style, 'train', z + up + car * 1.5, lane, car);
+    const top = front.mesh.userData.roof || roof;
+    front.roof = top;
+    back.roof = top;
+    front.half = 0.95;
+    back.half = 0.95;
     const ramp = spawn('ramp', 'ramp', z + up / 2, lane, up);
     ramp.roof = top;
     ramp.half = 0.95;
     ramp.dir = 1;
     ramp.mesh.scale.y = top;
     ramp.mesh.scale.z = up;
-    const drop = spawn('ramp', 'ramp', z + up + trainLen + down / 2, lane, down);
+    const drop = spawn('ramp', 'ramp', z + up + car * 2 + down / 2, lane, down);
     drop.roof = top;
     drop.half = 0.95;
     drop.dir = -1;
@@ -1357,7 +1541,7 @@ export function createGame(canvas, hooks) {
     drop.mesh.scale.y = top;
     drop.mesh.scale.z = down;
     coinLine(z + up + 1.5, lane, top + 0.9);
-    return z + up + trainLen + down;
+    return z + up + car * 2 + down;
   }
 
   function extendTrack() {
@@ -1413,7 +1597,7 @@ export function createGame(canvas, hooks) {
           coinLine(z + 2.2, open);
           run.lastForced = 'high';
         } else if (roll < 0.66) {
-          spawn(roll < 0.58 ? 'log' : 'hedge-all', 'low', z, roll < 0.58 ? lane() : null, 0.9);
+          spawn(roll < 0.62 ? 'hedge' : 'hedge-all', 'low', z, roll < 0.62 ? lane() : null, 0.9);
           run.lastForced = 'low';
         } else if (roll < 0.84 && band > 80 && !crowdsPit(z, 4)) {
           const open = lane();
@@ -1464,7 +1648,8 @@ export function createGame(canvas, hooks) {
         continue;
       }
       if (roll < 0.64) {
-        spawn('low-all', 'low', z, null, 0.72);
+        if (roll < 0.55) spawn('hurdle', 'low', z, lane(), 0.7);
+        else spawn('low-all', 'low', z, null, 0.72);
         run.lastForced = 'low';
         continue;
       }
@@ -1598,7 +1783,7 @@ export function createGame(canvas, hooks) {
   }
 
   function fail(reason) {
-    if (run.phase !== 'play' || run.boost > 0) return;
+    if (run.phase !== 'play' || run.boost > 0 || run.scooter > 0) return;
     run.phase = 'ending';
     run.reason = reason;
     run.endT = 0;
@@ -1645,7 +1830,7 @@ export function createGame(canvas, hooks) {
   }
 
   function bump() {
-    if (run.phase !== 'play' || run.iframes > 0 || run.boost > 0) return;
+    if (run.phase !== 'play' || run.iframes > 0 || run.boost > 0 || run.scooter > 0) return;
     if (run.board > 0) {
       run.board = 0;
       run.iframes = 0.35;
@@ -1777,7 +1962,9 @@ export function createGame(canvas, hooks) {
     run.iframes = Math.max(0, run.iframes - dt);
     run.inv = Math.max(0, run.inv - dt);
     run.boost = Math.max(0, run.boost - dt);
+    run.scooter = Math.max(0, run.scooter - dt);
     if (run.boost > 0) run.inv = Math.max(run.inv, run.boost);
+    if (run.scooter > 0) run.inv = Math.max(run.inv, run.scooter);
     run.magnet = Math.max(0, run.magnet - dt);
     run.shoes = Math.max(0, run.shoes - dt);
     run.smoke = Math.max(0, run.smoke - dt);
@@ -1789,6 +1976,12 @@ export function createGame(canvas, hooks) {
     run.shroom = Math.max(0, run.shroom - dt);
     run.noodle = Math.max(0, run.noodle - dt);
     if (playerMic) playerMic.visible = run.boost > 0;
+    if (playerScooter) {
+      playerScooter.visible = run.scooter > 0;
+      if (run.scooter > 0) {
+        for (const tire of playerScooter.userData.tires) tire.rotation.y += dt * 22;
+      }
+    }
     run.board = Math.max(0, run.board - dt);
     run.stumble = Math.max(0, run.stumble - dt);
     const target = LANES[run.lane];
@@ -1818,18 +2011,30 @@ export function createGame(canvas, hooks) {
     points(step);
     const feet = run.mode === 'jumping' ? run.jumpBase + arc : run.floor;
     const ride = rideFloor(feet);
-    if (ride.hit && !(run.boost > 0)) fail('train');
+    if (ride.hit && !(run.boost > 0 || run.scooter > 0)) fail('train');
     if (run.phase === 'play') run.floor = ride.floor;
     const bodyY = run.fly > 0 ? 3.6 : run.mode === 'jumping' ? run.jumpBase + arc : run.floor;
     player.position.set(run.x, bodyY, run.z);
     const ham = heroId === 'tao';
     const phase = run.distance * (ham ? 2.2 : 1.55);
-    const bob = run.mode === 'running' ? Math.abs(Math.sin(phase)) * (ham ? 0.2 : 0.07) : 0;
+    const bob = run.scooter > 0 ? 0.02 : run.mode === 'running' ? Math.abs(Math.sin(phase)) * (ham ? 0.2 : 0.07) : 0;
     player.rotation.order = 'YXZ';
     player.rotation.y = Math.PI;
     player.rotation.z = (target - run.x) * (ham ? -0.9 : -0.45);
     if (ham && run.mode === 'running') player.rotation.z += Math.sin(phase * 0.5) * 0.28;
-    if (run.mode === 'sliding') {
+    if (run.scooter > 0) {
+      player.scale.set(1, 1, 1);
+      player.rotation.x = 0.22;
+      poseRig(playerRig, {
+        legL: 1.2,
+        legR: 1.2,
+        armL: -0.95,
+        armR: -0.95,
+        head: 0.06,
+        armZL: 0.42,
+        armZR: -0.42,
+      });
+    } else if (run.mode === 'sliding') {
       player.scale.set(1.08, 0.42, 1.2);
       player.rotation.x = ham ? 0.42 : 0.12;
       poseRig(playerRig, ham
@@ -1957,7 +2162,7 @@ export function createGame(canvas, hooks) {
       run.gap = stepped.gap;
       run.chaserSpeed = stepped.speed;
     }
-    if (run.boost > 0 && run.gap < 4) run.gap = 4;
+    if ((run.boost > 0 || run.scooter > 0) && run.gap < 4) run.gap = 4;
     if (run.gap <= 0) fail('caught');
     chaser.visible = run.chasePause <= 0 && run.gap < 9;
     chaser.scale.setScalar(1);
@@ -2148,6 +2353,7 @@ export function createGame(canvas, hooks) {
     if (run.shroom > 0) effects.push({ name: '蘑菇', t: run.shroom });
     if (run.noodle > 0) effects.push({ name: '牛肉面', t: run.noodle });
     if (run.boost > 0) effects.push({ name: '话筒', t: run.boost });
+    if (run.scooter > 0) effects.push({ name: '电瓶车', t: run.scooter });
     if (run.board > 0) effects.push({ name: '滑板', t: run.board });
     hooks.onHud({
       score: Math.floor(run.score),
@@ -2156,6 +2362,7 @@ export function createGame(canvas, hooks) {
       keys: readKeys(),
       jets: readJets(),
       boosts: readBoosts(),
+      scooters: readScooters(),
       hero: heroId,
       combo: comboMultiplier(run.clean),
       gap: run.gap,
@@ -2362,7 +2569,7 @@ export function createGame(canvas, hooks) {
       run.board = 8;
     },
     wallet() {
-      return { coins: readCoins(), keys: readKeys(), jets: readJets(), boosts: readBoosts() };
+      return { coins: readCoins(), keys: readKeys(), jets: readJets(), boosts: readBoosts(), scooters: readScooters() };
     },
     buyKey() {
       const next = buyKey(readCoins(), readKeys());
@@ -2399,6 +2606,22 @@ export function createGame(canvas, hooks) {
       const dur = Number.isFinite(seconds) && seconds > 0.4 ? seconds : 8.6;
       run.boost = dur;
       run.inv = Math.max(run.inv, dur);
+      if (run.gap < 4) run.gap = 4;
+      hud();
+      return true;
+    },
+    buyScooter() {
+      const next = buyKey(readCoins(), readScooters(), SCOOTER_PRICE);
+      if (!next.ok) return { coins: next.coins, scooters: readScooters(), ok: false };
+      writeCoins(next.coins);
+      writeScooters(next.keys);
+      return { coins: next.coins, scooters: next.keys, ok: true };
+    },
+    useScooter() {
+      if (run.phase !== 'play' || heroId !== 'dudu' || run.scooter > 0 || readScooters() < 1) return false;
+      writeScooters(readScooters() - 1);
+      run.scooter = SCOOTER_TIME;
+      run.inv = Math.max(run.inv, SCOOTER_TIME);
       if (run.gap < 4) run.gap = 4;
       hud();
       return true;

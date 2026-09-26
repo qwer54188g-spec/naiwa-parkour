@@ -101,6 +101,8 @@ export function stepChaser(gap, speed, dt, playerSpeed, distance, options) {
 export const KEY_PRICE = 200;
 export const JET_PRICE = 300;
 export const BOOST_PRICE = 500;
+export const SCOOTER_PRICE = 300;
+export const SCOOTER_TIME = 20;
 
 /** 金币够就扣掉，换一把钥匙。不够则原样返回。 */
 export function buyKey(coins, keys, price = KEY_PRICE) {

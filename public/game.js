@@ -26272,6 +26272,16 @@ function writeBoosts(count) {
     console.warn("naiwa.boosts", error);
   }
 }
+function ensureMicGift() {
+  try {
+    if (localStorage.getItem("naiwa-mic-gift") === "1") return;
+    writeBoosts(readBoosts() + 1);
+    localStorage.setItem("naiwa-mic-gift", "1");
+  } catch (error) {
+    console.warn("naiwa.mic", error);
+  }
+}
+ensureMicGift();
 function normalizeHero(id) {
   if (id === "dudu" || id === "tao") return id;
   return "frog";
@@ -28230,7 +28240,7 @@ function createGame(canvas, hooks) {
       return { coins: next.coins, boosts: next.keys, ok: true };
     },
     useBoost(seconds) {
-      if (heroId !== "tao" || run.phase !== "play" || run.boost > 0 || readBoosts() < 1) return false;
+      if (run.phase !== "play" || run.boost > 0 || readBoosts() < 1) return false;
       writeBoosts(readBoosts() - 1);
       const dur = Number.isFinite(seconds) && seconds > 0.4 ? seconds : 8.6;
       run.boost = dur;
@@ -28335,7 +28345,7 @@ function paintShop() {
   useJetBtn.textContent = `\u98DE\u884C ${pocket.jets}`;
   useJetBtn.classList.toggle("on", playing && pocket.jets > 0);
   useBoostBtn.textContent = `\u8BDD\u7B52 ${pocket.boosts}`;
-  useBoostBtn.classList.toggle("on", playing && game.hero() === "tao" && pocket.boosts > 0);
+  useBoostBtn.classList.toggle("on", playing && pocket.boosts > 0);
 }
 function paintCast() {
   const current = game.hero();
@@ -28451,7 +28461,7 @@ var game = createGame(document.querySelector("#view"), {
     useJetBtn.textContent = `\u98DE\u884C ${hud.jets}`;
     useJetBtn.classList.toggle("on", playing && hud.jets > 0);
     useBoostBtn.textContent = `\u8BDD\u7B52 ${hud.boosts}`;
-    useBoostBtn.classList.toggle("on", playing && hud.hero === "tao" && hud.boosts > 0);
+    useBoostBtn.classList.toggle("on", playing && hud.boosts > 0);
   },
   onChuckle() {
     if (shroomTalk || noodleTalk || game.hero() === "tao") return;

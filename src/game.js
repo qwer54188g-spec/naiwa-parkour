@@ -126,6 +126,18 @@ function writeBoosts(count) {
   }
 }
 
+function ensureMicGift() {
+  try {
+    if (localStorage.getItem('naiwa-mic-gift') === '1') return;
+    writeBoosts(readBoosts() + 1);
+    localStorage.setItem('naiwa-mic-gift', '1');
+  } catch (error) {
+    console.warn('naiwa.mic', error);
+  }
+}
+
+ensureMicGift();
+
 function normalizeHero(id) {
   if (id === 'dudu' || id === 'tao') return id;
   return 'frog';
@@ -2134,7 +2146,7 @@ export function createGame(canvas, hooks) {
       return { coins: next.coins, boosts: next.keys, ok: true };
     },
     useBoost(seconds) {
-      if (heroId !== 'tao' || run.phase !== 'play' || run.boost > 0 || readBoosts() < 1) return false;
+      if (run.phase !== 'play' || run.boost > 0 || readBoosts() < 1) return false;
       writeBoosts(readBoosts() - 1);
       const dur = Number.isFinite(seconds) && seconds > 0.4 ? seconds : 8.6;
       run.boost = dur;

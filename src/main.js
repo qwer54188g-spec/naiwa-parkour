@@ -76,7 +76,7 @@ function paintShop() {
   useJetBtn.textContent = `飞行 ${pocket.jets}`;
   useJetBtn.classList.toggle('on', playing && pocket.jets > 0);
   useBoostBtn.textContent = `话筒 ${pocket.boosts}`;
-  useBoostBtn.classList.toggle('on', playing && game.hero() === 'tao' && pocket.boosts > 0);
+  useBoostBtn.classList.toggle('on', playing && pocket.boosts > 0);
 }
 
 function paintCast() {
@@ -205,7 +205,7 @@ const game = createGame(document.querySelector('#view'), {
     useJetBtn.textContent = `飞行 ${hud.jets}`;
     useJetBtn.classList.toggle('on', playing && hud.jets > 0);
     useBoostBtn.textContent = `话筒 ${hud.boosts}`;
-    useBoostBtn.classList.toggle('on', playing && hud.hero === 'tao' && hud.boosts > 0);
+    useBoostBtn.classList.toggle('on', playing && hud.boosts > 0);
   },
   onChuckle() {
     if (shroomTalk || noodleTalk || game.hero() === 'tao') return;

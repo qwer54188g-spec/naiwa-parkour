@@ -1,0 +1,6 @@
+node_modules/
+public/game.js.map
+tools/*.png
+tools/preview/
+tools/frog-trio.glb
+tools/check-*.mjs

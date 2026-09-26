@@ -1,0 +1,16 @@
+{
+  "name": "naiwa-parkour",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/main.js --bundle --format=iife --target=es2020 --outfile=public/game.js",
+    "start": "node server.mjs",
+    "test": "node --test src/rules.test.js"
+  },
+  "dependencies": {
+    "three": "0.170.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.9"
+  }
+}

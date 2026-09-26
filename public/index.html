@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>奶蛙跑酷</title>
+    <style>
+      :root {
+        --ink: #3a2415;
+        --cream: rgba(255, 246, 223, 0.94);
+        --yolk: #ffc83d;
+        --line: #3a2415;
+        color-scheme: light;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #9fd8f5;
+        color: var(--ink);
+        font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      canvas {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      #vignette {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        box-shadow: inset 0 0 90px 24px rgba(180, 16, 16, var(--danger, 0));
+        transition: box-shadow 0.2s linear;
+      }
+      #hud {
+        position: fixed;
+        top: calc(10px + env(safe-area-inset-top));
+        left: 12px;
+        right: 12px;
+        display: none;
+        gap: 8px;
+        align-items: flex-start;
+        pointer-events: none;
+      }
+      body.live #hud { display: flex; }
+      .card {
+        background: var(--cream);
+        border: 3px solid var(--line);
+        border-radius: 16px;
+        padding: 8px 12px;
+        box-shadow: 0 3px 0 var(--line);
+      }
+      #score {
+        font-size: 28px;
+        font-weight: 800;
+        line-height: 1;
+      }
+      #meta, #chase {
+        margin-top: 4px;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      #chase.warn { color: #b45309; }
+      #chase.danger { color: #c81e1e; }
+      #pills {
+        margin-left: auto;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        justify-content: flex-end;
+        max-width: 46vw;
+      }
+      .pill {
+        background: var(--yolk);
+        border: 2px solid var(--line);
+        border-radius: 999px;
+        padding: 4px 8px;
+        font-size: 12px;
+        font-weight: 800;
+      }
+      #hint {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: calc(18px + env(safe-area-inset-bottom));
+        text-align: center;
+        font-weight: 800;
+        color: var(--ink);
+        text-shadow: 0 1px 0 #fff6df;
+        display: none;
+        pointer-events: none;
+      }
+      body.live #hint { display: block; animation: hintout 7s linear forwards; }
+      @keyframes hintout { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
+      #title, #over {
+        position: fixed;
+        left: 50%;
+        bottom: calc(14px + env(safe-area-inset-bottom));
+        transform: translateX(-50%);
+        width: min(440px, calc(100% - 24px));
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+      }
+      #over { display: none; }
+      body.over #title { display: none; }
+      body.over #over { display: flex; }
+      body.live #title, body.live #over, body.intro #title, body.intro #over,
+      body.ending #title, body.ending #over, body.ending #hud, body.ending #hint, body.ending #shop-open, body.ending #store { display: none; }
+      body.live.over #over { display: flex; }
+      h1, h2 { margin: 0; letter-spacing: 0.04em; }
+      h1 { font-size: 34px; }
+      .sub { margin: 0; font-size: 14px; font-weight: 700; text-align: center; }
+      button {
+        appearance: none;
+        border: 3px solid var(--line);
+        background: var(--yolk);
+        color: var(--ink);
+        border-radius: 999px;
+        min-height: 52px;
+        padding: 0 22px;
+        font: inherit;
+        font-weight: 800;
+        font-size: 18px;
+        box-shadow: 0 4px 0 var(--line);
+        width: 100%;
+      }
+      button.ghost {
+        background: var(--cream);
+        min-height: 44px;
+        font-size: 15px;
+        box-shadow: none;
+      }
+      button:disabled { opacity: 0.55; }
+      button:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--line); }
+      #sheet {
+        width: 100%;
+        background: var(--cream);
+        border: 3px solid var(--line);
+        border-radius: 18px;
+        padding: 12px 14px 14px;
+        box-shadow: 0 4px 0 var(--line);
+      }
+      #sheet p { margin: 4px 0; font-weight: 700; }
+      #over-score { font-size: 28px; font-weight: 800; }
+      #best-flag { color: #c45500; }
+      #shop-open {
+        position: fixed;
+        top: calc(16px + env(safe-area-inset-top));
+        right: 14px;
+        z-index: 4;
+        width: 72px;
+        height: 72px;
+        min-height: 72px;
+        padding: 6px 4px 4px;
+        border-radius: 18px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        font-size: 13px;
+        line-height: 1;
+      }
+      #shop-open svg { display: block; }
+      body.live #shop-open, body.intro #shop-open { display: none; }
+      #store {
+        position: fixed;
+        inset: 0;
+        z-index: 6;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 18px;
+        background: rgba(58, 36, 21, 0.38);
+      }
+      #store.open { display: flex; }
+      body.live #store, body.intro #store { display: none; }
+      #store-card {
+        width: min(360px, 100%);
+        background: var(--cream);
+        border: 3px solid var(--line);
+        border-radius: 18px;
+        padding: 14px;
+        box-shadow: 0 4px 0 var(--line);
+      }
+      #store-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      #store-close {
+        width: auto;
+        min-height: 36px;
+        padding: 0 12px;
+        font-size: 14px;
+        background: var(--cream);
+        box-shadow: none;
+      }
+      #wallet { margin: 8px 0 12px; font-weight: 800; }
+      .good {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 4px 12px;
+        align-items: center;
+        border: 3px solid var(--line);
+        border-radius: 16px;
+        padding: 12px;
+        background: #fffaf0;
+      }
+      .good strong { font-size: 18px; }
+      .good .note { font-size: 13px; font-weight: 700; }
+      .price {
+        font-size: 22px;
+        font-weight: 800;
+        text-align: right;
+      }
+      .price small { display: block; font-size: 12px; }
+      #goods { display: flex; flex-direction: column; gap: 10px; }
+      .good > button { grid-column: 1 / -1; margin-top: 6px; }
+      .buy-note { grid-column: 1 / -1; margin: 0; font-size: 13px; font-weight: 800; text-align: center; min-height: 1.2em; }
+      #use-jet {
+        position: fixed;
+        top: calc(16px + env(safe-area-inset-top));
+        right: 14px;
+        z-index: 4;
+        width: 72px;
+        height: 72px;
+        min-height: 72px;
+        padding: 6px;
+        border-radius: 18px;
+        display: none;
+        font-size: 14px;
+        line-height: 1.15;
+      }
+      body.live #use-jet.on { display: flex; align-items: center; justify-content: center; }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <div id="vignette"></div>
+    <div id="hud">
+      <div class="card">
+        <div id="score">0</div>
+        <div id="meta">0 米 · 金币 0</div>
+        <div id="chase">追击 16 米</div>
+      </div>
+      <div id="pills"></div>
+    </div>
+    <div id="hint">全是反的：右滑往左，左滑往右，下滑往上跳，上滑往下铲</div>
+    <audio id="laugh" preload="auto" src="assets/laugh.m4a"></audio>
+    <button id="use-jet" type="button">飞行</button>
+    <button id="shop-open" type="button" aria-label="商店">
+      <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true">
+        <path d="M7 11h14l-1.2 11H8.2L7 11z" fill="#fff6df" stroke="#3a2415" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M10 11V8.5a4 4 0 0 1 8 0V11" fill="none" stroke="#3a2415" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <span>商店</span>
+    </button>
+    <div id="store">
+      <div id="store-card">
+        <div id="store-head">
+          <h2>商店</h2>
+          <button id="store-close" type="button">关闭</button>
+        </div>
+        <p id="wallet">金币 0 · 钥匙 0 · 飞行 0</p>
+        <div id="goods">
+          <div class="good">
+            <strong>钥匙</strong>
+            <span class="price">200<small>金币</small></span>
+            <span class="note">用来复活</span>
+            <button id="buy" type="button">购买</button>
+            <p class="buy-note" id="buy-note"></p>
+          </div>
+          <div class="good">
+            <strong>飞行背包</strong>
+            <span class="price">2000<small>金币</small></span>
+            <span class="note">在半空里跑一段</span>
+            <button id="buy-jet" type="button">购买</button>
+            <p class="buy-note" id="jet-note"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <section id="title">
+      <div id="sheet">
+        <h1>奶蛙跑酷</h1>
+        <p class="sub">点一下开始。奶蛙对着你笑完，就自己开跑。</p>
+        <button id="start" class="primary" disabled>奶蛙正在赶来…</button>
+      </div>
+    </section>
+    <section id="over">
+      <div id="sheet">
+        <h2 id="over-title">撞上了</h2>
+        <p id="over-score">0</p>
+        <p id="over-meta"></p>
+        <p id="best-flag"></p>
+        <button id="revive" class="primary" type="button">用钥匙复活</button>
+        <button id="again" class="ghost" type="button">再来一次</button>
+      </div>
+    </section>
+    <script type="module" src="./game.js?v=21"></script>
+  </body>
+</html>

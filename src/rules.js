@@ -34,6 +34,11 @@ export function baseSpeed(distance) {
   return 14.5 * 1.08 ** steps;
 }
 
+/** 按这一碗所在位置的跑速，唱完 seconds 秒大概能跑多远。 */
+export function coverDistance(start, seconds) {
+  return Math.max(0, start) + baseSpeed(start) * Math.max(0, seconds);
+}
+
 /** 障碍间距随距离变密，但始终留得下一次跳跃的反应时间。 */
 export function minSpacing(speed, distance) {
   const reaction = 0.78 - Math.min(Math.max(distance, 0) / 900, 1) * 0.26;
@@ -113,12 +118,11 @@ const ITEM_TABLE = [
   ['jet', 8],
   ['key', 6],
   ['chest', 8],
-  ['poop', 36],
-  ['shroom', 22],
-  ['noodle', 18],
+  ['poop', 6],
+  ['shroom', 5],
 ];
 
-/** 后程稀有道具权重下降。rand 返回 [0,1)。便便权重最高，保证路上经常能见到。 */
+/** 后程稀有道具权重下降。rand 返回 [0,1)。便便和蘑菇只是偶尔出现。 */
 export function rollItem(distance, rand) {
   const late = Math.min(Math.max(distance, 0) / 500, 1);
   const weights = ITEM_TABLE.map(([name, weight]) => {
@@ -132,7 +136,7 @@ export function rollItem(distance, rand) {
     cursor -= weight;
     if (cursor <= 0) return name;
   }
-  return 'poop';
+  return 'magnet';
 }
 
 export function itemDuration(name) {

@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import {
   LANES,
   baseSpeed,
+  coverDistance,
   chaserMood,
   clampLane,
   JET_PRICE,
@@ -14,6 +15,34 @@ import {
   rollItem,
   stepChaser,
 } from './rules.js';
+
+/** 白碗是原来那段。后面两段音频按顺序，每两句一碗红碗。下一碗放在这两句快唱完的地方。 */
+const LYRIC_CLIPS = [
+  { src: 'assets/noodle.m4a', start: 0, end: 3.75, red: false },
+  { src: 'assets/lyric-a.m4a', start: 0, end: 7.8, red: true },
+  { src: 'assets/lyric-a.m4a', start: 7.8, end: 15, red: true },
+  { src: 'assets/lyric-a.m4a', start: 15, end: 22.6, red: true },
+  { src: 'assets/lyric-a.m4a', start: 22.6, end: 29.2, red: true },
+  { src: 'assets/lyric-a.m4a', start: 29.2, end: 33.13, red: true },
+  { src: 'assets/lyric-b.m4a', start: 0, end: 7.3, red: true },
+  { src: 'assets/lyric-b.m4a', start: 7.3, end: 14.6, red: true },
+  { src: 'assets/lyric-b.m4a', start: 14.6, end: 22, red: true },
+  { src: 'assets/lyric-b.m4a', start: 22, end: 29.3, red: true },
+  { src: 'assets/lyric-b.m4a', start: 29.3, end: 36.6, red: true },
+  { src: 'assets/lyric-b.m4a', start: 36.6, end: 43.97, red: true },
+];
+
+function lyricStops() {
+  let z = 108;
+  return LYRIC_CLIPS.map((clip) => {
+    const stop = { ...clip, z };
+    const ahead = coverDistance(z, clip.end - clip.start) - z;
+    z += ahead * 0.9;
+    return stop;
+  });
+}
+
+const LYRIC_STOPS = lyricStops();
 
 const BEST_KEY = 'naiwa-best';
 const KEY_KEY = 'naiwa-keys';
@@ -134,7 +163,8 @@ function buildMesh(type) {
   if (type === 'chest') return box(0.72, 0.5, 0.72, '#e0a030', 0.55);
   if (type === 'poop') return poop();
   if (type === 'shroom') return mushroom();
-  if (type === 'noodle') return noodleBowl();
+  if (type === 'noodle') return noodleBowl(false);
+  if (type === 'noodle-red') return noodleBowl(true);
   if (type === 'pit') return pit();
   if (type === 'crate') return plankCrate();
   if (type === 'coin') return coin();
@@ -361,15 +391,15 @@ function mushroom() {
   return group;
 }
 
-function noodleBowl() {
+function noodleBowl(red) {
   const group = new THREE.Group();
   const bowl = new THREE.Mesh(
     new THREE.SphereGeometry(0.46, 28, 16, 0, Math.PI * 2, Math.PI * 0.5, Math.PI * 0.5),
-    mat('#f4efe4', { roughness: 0.28 }),
+    mat(red ? '#d23a32' : '#f4efe4', { roughness: 0.28 }),
   );
   bowl.scale.set(1.15, 0.85, 1.15);
   bowl.position.y = 0.36;
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.52, 0.045, 8, 28), mat('#fffdf8'));
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.52, 0.045, 8, 28), mat(red ? '#f0c2bc' : '#fffdf8'));
   rim.rotation.x = Math.PI / 2;
   rim.position.y = 0.38;
   const lip = new THREE.Mesh(new THREE.TorusGeometry(0.49, 0.016, 6, 24), mat('#d23b2c'));
@@ -848,9 +878,9 @@ function freshRun() {
     doubleRest: false,
     cursor: 32,
     itemIn: 4,
-    poopAt: 30,
-    shroomAt: 16,
-    noodleAt: 10,
+    poopAt: 180,
+    shroomAt: 260,
+    lyricNext: 0,
     lastForced: '',
     shown: false,
   };
@@ -1054,17 +1084,15 @@ export function createGame(canvas, hooks) {
       run.cursor += gap;
       while (run.poopAt < run.cursor - 6) {
         placePoop(run.poopAt, (Math.random() * 3) | 0);
-        run.poopAt += 38;
+        run.poopAt += 210;
       }
       while (run.shroomAt < run.cursor - 6) {
-        const lane = run.shroomAt === 16 ? 1 : (Math.random() * 3) | 0;
-        placeShroom(run.shroomAt, lane);
-        run.shroomAt += 44;
+        placeShroom(run.shroomAt, (Math.random() * 3) | 0);
+        run.shroomAt += 240;
       }
-      while (run.noodleAt < run.cursor - 6) {
-        const lane = run.noodleAt === 10 ? 1 : (Math.random() * 3) | 0;
-        placeNoodle(run.noodleAt, lane);
-        run.noodleAt += 52;
+      while (run.lyricNext < LYRIC_STOPS.length && LYRIC_STOPS[run.lyricNext].z < run.cursor - 6) {
+        placeNoodle(LYRIC_STOPS[run.lyricNext]);
+        run.lyricNext += 1;
       }
       const z = run.cursor;
       const roll = Math.random();
@@ -1146,11 +1174,13 @@ export function createGame(canvas, hooks) {
     obj.item = 'shroom';
   }
 
-  function placeNoodle(z, lane) {
-    const taken = active.some((obj) => obj.lane === lane && Math.abs(obj.z - z) < 2.2 && obj.kind !== 'coin');
-    const useLane = taken ? (lane + 1) % 3 : lane;
-    const obj = spawn('noodle', 'item', z, useLane, 0.9);
+  function placeNoodle(stop) {
+    let z = stop.z;
+    const blocked = () => active.some((obj) => obj.lane === 1 && Math.abs(obj.z - z) < 2.4 && obj.kind !== 'coin');
+    while (blocked()) z += 4;
+    const obj = spawn(stop.red ? 'noodle-red' : 'noodle', 'item', z, 1, 0.9);
     obj.item = 'noodle';
+    obj.clip = stop;
   }
 
   function maybeItem(dt) {
@@ -1259,7 +1289,7 @@ export function createGame(canvas, hooks) {
           obj.gone = true;
           hooks.audio.coin();
         }
-        if (obj.kind === 'item') takeItem(obj.item);
+        if (obj.kind === 'item') takeItem(obj.item, obj.clip);
         obj.gone = true;
         continue;
       }
@@ -1287,7 +1317,7 @@ export function createGame(canvas, hooks) {
     }
   }
 
-  function takeItem(name) {
+  function takeItem(name, clip) {
     hooks.audio.power();
     navigator.vibrate?.(16);
     if (name === 'magnet') run.magnet = itemDuration(name);
@@ -1315,8 +1345,9 @@ export function createGame(canvas, hooks) {
       hooks.onShroom?.();
     }
     if (name === 'noodle') {
-      run.noodle = itemDuration(name);
-      hooks.onNoodle?.();
+      const dur = clip ? Math.max(0.4, clip.end - clip.start) : 3.75;
+      run.noodle = dur;
+      hooks.onNoodle?.(clip || { src: 'assets/noodle.m4a', start: 0, end: 3.75 });
     }
     if (name === 'key') writeKeys(readKeys() + 1);
     if (name === 'chest') {

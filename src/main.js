@@ -14,12 +14,22 @@ duduLine.addEventListener('ended', () => {
   laugh.loop = true;
   laugh.play()?.catch((error) => console.warn('naiwa.laugh', error));
 });
-noodle.addEventListener('ended', () => {
+let noodleStop = 0;
+let noodleToken = 0;
+function finishNoodleLine() {
   if (!noodleTalk) return;
   noodleTalk = false;
+  noodle.pause();
   if (!poopLaugh || !playing) return;
   laugh.loop = true;
   laugh.play()?.catch((error) => console.warn('naiwa.laugh', error));
+}
+noodle.addEventListener('ended', finishNoodleLine);
+noodle.addEventListener('timeupdate', () => {
+  if (!noodleTalk || !Number.isFinite(noodleStop)) return;
+  if (noodle.currentTime > noodleStop + 0.3) return;
+  if (noodle.currentTime + 0.05 < noodleStop) return;
+  finishNoodleLine();
 });
 const cast = document.querySelector('#cast');
 const castOpenBtn = document.querySelector('#cast-open');
@@ -181,20 +191,35 @@ const game = createGame(document.querySelector('#view'), {
       laugh.pause();
     }, 500);
   },
-  onNoodle() {
+  onNoodle(clip) {
+    const line = clip || { src: 'assets/noodle.m4a', start: 0, end: 3.75 };
     noodleTalk = true;
+    noodleStop = Number.POSITIVE_INFINITY;
     shroomTalk = false;
     laugh.pause();
     duduLine.pause();
     duduName.pause();
     noodle.loop = false;
-    try {
-      noodle.currentTime = 0;
+    const token = ++noodleToken;
+    const start = () => {
+      if (token !== noodleToken) return;
+      noodleStop = line.end;
+      try {
+        noodle.currentTime = line.start;
+      } catch (error) {
+        console.warn('naiwa.noodle', error);
+      }
       const pending = noodle.play();
       if (pending && typeof pending.catch === 'function') pending.catch((error) => console.warn('naiwa.noodle', error));
-    } catch (error) {
-      console.warn('naiwa.noodle', error);
+    };
+    const file = line.src;
+    if (!String(noodle.src || '').endsWith(file)) {
+      noodle.src = file;
+      noodle.addEventListener('loadeddata', start, { once: true });
+      noodle.load();
+      return;
     }
+    start();
   },
   onShroom() {
     shroomTalk = true;

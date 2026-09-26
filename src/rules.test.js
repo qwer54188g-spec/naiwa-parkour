@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   baseSpeed,
+  coverDistance,
   buyKey,
   chaserMood,
   comboMultiplier,
@@ -54,18 +55,20 @@ test('追逐者会更快贴上来', () => {
   assert.ok(gap < 10, `gap should close, got ${gap}`);
 });
 
-test('200 金币换一把钥匙，便便会经常被抽到', () => {
+test('200 金币换一把钥匙，便便和蘑菇不再老是抽到', () => {
   assert.deepEqual(buyKey(200, 0), { coins: 0, keys: 1, ok: true });
   let n = 0;
   const rand = () => {
     n += 0.17;
     return n % 1;
   };
-  let poops = 0;
-  for (let i = 0; i < 40; i += 1) if (rollItem(0, rand) === 'poop') poops += 1;
-  assert.ok(poops >= 8, `expected poop often, got ${poops}`);
+  let rare = 0;
+  for (let i = 0; i < 40; i += 1) {
+    const item = rollItem(0, rand);
+    if (item === 'poop' || item === 'shroom' || item === 'noodle') rare += 1;
+  }
+  assert.ok(rare <= 8, `expected rare items seldom, got ${rare}`);
   assert.equal(itemDuration('shroom'), 6);
-  assert.equal(itemDuration('noodle'), 4.6);
-  assert.equal(rollItem(0, () => 0.8), 'shroom');
-  assert.equal(rollItem(0, () => 0.99), 'noodle');
+  const sung = coverDistance(108, 3.75) - 108;
+  assert.ok(sung > 50 && sung < 70, `white bowl gap ${sung}`);
 });

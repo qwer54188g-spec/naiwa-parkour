@@ -26074,6 +26074,9 @@ function baseSpeed(distance) {
   const steps = Math.floor(Math.max(0, distance) / 80);
   return 14.5 * 1.08 ** steps;
 }
+function coverDistance(start, seconds) {
+  return Math.max(0, start) + baseSpeed(start) * Math.max(0, seconds);
+}
 function minSpacing(speed, distance) {
   const reaction = 0.78 - Math.min(Math.max(distance, 0) / 900, 1) * 0.26;
   return Math.max(8.2, speed * reaction);
@@ -26140,9 +26143,8 @@ var ITEM_TABLE = [
   ["jet", 8],
   ["key", 6],
   ["chest", 8],
-  ["poop", 36],
-  ["shroom", 22],
-  ["noodle", 18]
+  ["poop", 6],
+  ["shroom", 5]
 ];
 function rollItem(distance, rand) {
   const late = Math.min(Math.max(distance, 0) / 500, 1);
@@ -26157,7 +26159,7 @@ function rollItem(distance, rand) {
     cursor -= weight;
     if (cursor <= 0) return name;
   }
-  return "poop";
+  return "magnet";
 }
 function itemDuration(name) {
   if (name === "magnet") return 8;
@@ -26173,6 +26175,30 @@ function itemDuration(name) {
 }
 
 // src/game.js
+var LYRIC_CLIPS = [
+  { src: "assets/noodle.m4a", start: 0, end: 3.75, red: false },
+  { src: "assets/lyric-a.m4a", start: 0, end: 7.8, red: true },
+  { src: "assets/lyric-a.m4a", start: 7.8, end: 15, red: true },
+  { src: "assets/lyric-a.m4a", start: 15, end: 22.6, red: true },
+  { src: "assets/lyric-a.m4a", start: 22.6, end: 29.2, red: true },
+  { src: "assets/lyric-a.m4a", start: 29.2, end: 33.13, red: true },
+  { src: "assets/lyric-b.m4a", start: 0, end: 7.3, red: true },
+  { src: "assets/lyric-b.m4a", start: 7.3, end: 14.6, red: true },
+  { src: "assets/lyric-b.m4a", start: 14.6, end: 22, red: true },
+  { src: "assets/lyric-b.m4a", start: 22, end: 29.3, red: true },
+  { src: "assets/lyric-b.m4a", start: 29.3, end: 36.6, red: true },
+  { src: "assets/lyric-b.m4a", start: 36.6, end: 43.97, red: true }
+];
+function lyricStops() {
+  let z = 108;
+  return LYRIC_CLIPS.map((clip) => {
+    const stop = { ...clip, z };
+    const ahead = coverDistance(z, clip.end - clip.start) - z;
+    z += ahead * 0.9;
+    return stop;
+  });
+}
+var LYRIC_STOPS = lyricStops();
 var BEST_KEY = "naiwa-best";
 var KEY_KEY = "naiwa-keys";
 var COIN_KEY = "naiwa-coins";
@@ -26280,7 +26306,8 @@ function buildMesh(type) {
   if (type === "chest") return box(0.72, 0.5, 0.72, "#e0a030", 0.55);
   if (type === "poop") return poop();
   if (type === "shroom") return mushroom();
-  if (type === "noodle") return noodleBowl();
+  if (type === "noodle") return noodleBowl(false);
+  if (type === "noodle-red") return noodleBowl(true);
   if (type === "pit") return pit();
   if (type === "crate") return plankCrate();
   if (type === "coin") return coin();
@@ -26560,15 +26587,15 @@ function mushroom() {
   group.userData.baseY = 1.15;
   return group;
 }
-function noodleBowl() {
+function noodleBowl(red) {
   const group = new Group();
   const bowl = new Mesh(
     new SphereGeometry(0.46, 28, 16, 0, Math.PI * 2, Math.PI * 0.5, Math.PI * 0.5),
-    mat("#f4efe4", { roughness: 0.28 })
+    mat(red ? "#d23a32" : "#f4efe4", { roughness: 0.28 })
   );
   bowl.scale.set(1.15, 0.85, 1.15);
   bowl.position.y = 0.36;
-  const rim = new Mesh(new TorusGeometry(0.52, 0.045, 8, 28), mat("#fffdf8"));
+  const rim = new Mesh(new TorusGeometry(0.52, 0.045, 8, 28), mat(red ? "#f0c2bc" : "#fffdf8"));
   rim.rotation.x = Math.PI / 2;
   rim.position.y = 0.38;
   const lip = new Mesh(new TorusGeometry(0.49, 0.016, 6, 24), mat("#d23b2c"));
@@ -27003,9 +27030,9 @@ function freshRun() {
     doubleRest: false,
     cursor: 32,
     itemIn: 4,
-    poopAt: 30,
-    shroomAt: 16,
-    noodleAt: 10,
+    poopAt: 180,
+    shroomAt: 260,
+    lyricNext: 0,
     lastForced: "",
     shown: false
   };
@@ -27193,17 +27220,15 @@ function createGame(canvas, hooks) {
       run.cursor += gap;
       while (run.poopAt < run.cursor - 6) {
         placePoop(run.poopAt, Math.random() * 3 | 0);
-        run.poopAt += 38;
+        run.poopAt += 210;
       }
       while (run.shroomAt < run.cursor - 6) {
-        const lane2 = run.shroomAt === 16 ? 1 : Math.random() * 3 | 0;
-        placeShroom(run.shroomAt, lane2);
-        run.shroomAt += 44;
+        placeShroom(run.shroomAt, Math.random() * 3 | 0);
+        run.shroomAt += 240;
       }
-      while (run.noodleAt < run.cursor - 6) {
-        const lane2 = run.noodleAt === 10 ? 1 : Math.random() * 3 | 0;
-        placeNoodle(run.noodleAt, lane2);
-        run.noodleAt += 52;
+      while (run.lyricNext < LYRIC_STOPS.length && LYRIC_STOPS[run.lyricNext].z < run.cursor - 6) {
+        placeNoodle(LYRIC_STOPS[run.lyricNext]);
+        run.lyricNext += 1;
       }
       const z = run.cursor;
       const roll = Math.random();
@@ -27282,11 +27307,13 @@ function createGame(canvas, hooks) {
     const obj = spawn("shroom", "item", z, useLane, 0.8);
     obj.item = "shroom";
   }
-  function placeNoodle(z, lane) {
-    const taken = active.some((obj2) => obj2.lane === lane && Math.abs(obj2.z - z) < 2.2 && obj2.kind !== "coin");
-    const useLane = taken ? (lane + 1) % 3 : lane;
-    const obj = spawn("noodle", "item", z, useLane, 0.9);
+  function placeNoodle(stop) {
+    let z = stop.z;
+    const blocked = () => active.some((obj2) => obj2.lane === 1 && Math.abs(obj2.z - z) < 2.4 && obj2.kind !== "coin");
+    while (blocked()) z += 4;
+    const obj = spawn(stop.red ? "noodle-red" : "noodle", "item", z, 1, 0.9);
     obj.item = "noodle";
+    obj.clip = stop;
   }
   function maybeItem(dt) {
     run.itemIn -= dt;
@@ -27388,7 +27415,7 @@ function createGame(canvas, hooks) {
           obj.gone = true;
           hooks.audio.coin();
         }
-        if (obj.kind === "item") takeItem(obj.item);
+        if (obj.kind === "item") takeItem(obj.item, obj.clip);
         obj.gone = true;
         continue;
       }
@@ -27415,7 +27442,7 @@ function createGame(canvas, hooks) {
       return;
     }
   }
-  function takeItem(name) {
+  function takeItem(name, clip) {
     hooks.audio.power();
     navigator.vibrate?.(16);
     if (name === "magnet") run.magnet = itemDuration(name);
@@ -27443,8 +27470,9 @@ function createGame(canvas, hooks) {
       hooks.onShroom?.();
     }
     if (name === "noodle") {
-      run.noodle = itemDuration(name);
-      hooks.onNoodle?.();
+      const dur = clip ? Math.max(0.4, clip.end - clip.start) : 3.75;
+      run.noodle = dur;
+      hooks.onNoodle?.(clip || { src: "assets/noodle.m4a", start: 0, end: 3.75 });
     }
     if (name === "key") writeKeys(readKeys() + 1);
     if (name === "chest") {
@@ -28022,12 +28050,22 @@ duduLine.addEventListener("ended", () => {
   laugh.loop = true;
   laugh.play()?.catch((error) => console.warn("naiwa.laugh", error));
 });
-noodle.addEventListener("ended", () => {
+var noodleStop = 0;
+var noodleToken = 0;
+function finishNoodleLine() {
   if (!noodleTalk) return;
   noodleTalk = false;
+  noodle.pause();
   if (!poopLaugh || !playing) return;
   laugh.loop = true;
   laugh.play()?.catch((error) => console.warn("naiwa.laugh", error));
+}
+noodle.addEventListener("ended", finishNoodleLine);
+noodle.addEventListener("timeupdate", () => {
+  if (!noodleTalk || !Number.isFinite(noodleStop)) return;
+  if (noodle.currentTime > noodleStop + 0.3) return;
+  if (noodle.currentTime + 0.05 < noodleStop) return;
+  finishNoodleLine();
 });
 var cast = document.querySelector("#cast");
 var castOpenBtn = document.querySelector("#cast-open");
@@ -28175,20 +28213,35 @@ var game = createGame(document.querySelector("#view"), {
       laugh.pause();
     }, 500);
   },
-  onNoodle() {
+  onNoodle(clip) {
+    const line = clip || { src: "assets/noodle.m4a", start: 0, end: 3.75 };
     noodleTalk = true;
+    noodleStop = Number.POSITIVE_INFINITY;
     shroomTalk = false;
     laugh.pause();
     duduLine.pause();
     duduName.pause();
     noodle.loop = false;
-    try {
-      noodle.currentTime = 0;
+    const token = ++noodleToken;
+    const start = () => {
+      if (token !== noodleToken) return;
+      noodleStop = line.end;
+      try {
+        noodle.currentTime = line.start;
+      } catch (error) {
+        console.warn("naiwa.noodle", error);
+      }
       const pending = noodle.play();
       if (pending && typeof pending.catch === "function") pending.catch((error) => console.warn("naiwa.noodle", error));
-    } catch (error) {
-      console.warn("naiwa.noodle", error);
+    };
+    const file = line.src;
+    if (!String(noodle.src || "").endsWith(file)) {
+      noodle.src = file;
+      noodle.addEventListener("loadeddata", start, { once: true });
+      noodle.load();
+      return;
     }
+    start();
   },
   onShroom() {
     shroomTalk = true;

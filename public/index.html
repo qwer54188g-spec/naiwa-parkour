@@ -31,6 +31,7 @@
         width: 100%;
         height: 100%;
         display: block;
+        cursor: grab;
       }
       #vignette {
         position: fixed;
@@ -282,6 +283,8 @@
     <audio id="dudu-line" preload="auto" src="assets/dudu-line.m4a"></audio>
     <audio id="dudu-name" preload="auto" src="assets/dudu-name.m4a"></audio>
     <audio id="noodle" preload="auto" src="assets/noodle.m4a"></audio>
+    <audio id="tao-line" preload="auto" src="assets/noodle.m4a"></audio>
+    <audio id="tao-death" preload="auto" src="assets/tao-death.m4a"></audio>
     <button id="use-jet" type="button">飞行</button>
     <button id="cast-open" type="button">角色</button>
     <div id="cast">
@@ -292,6 +295,7 @@
         </div>
         <button class="pick" type="button" data-hero="frog">奶蛙</button>
         <button class="pick" type="button" data-hero="dudu">肥嘟嘟袋鼠</button>
+        <button class="pick" type="button" data-hero="tao">马健涛</button>
       </div>
     </div>
     <button id="shop-open" type="button" aria-label="商店">
@@ -318,7 +322,7 @@
           </div>
           <div class="good">
             <strong>飞行背包</strong>
-            <span class="price">2000<small>金币</small></span>
+            <span class="price">300<small>金币</small></span>
             <span class="note">在半空里跑一段</span>
             <button id="buy-jet" type="button">购买</button>
             <p class="buy-note" id="jet-note"></p>
@@ -330,6 +334,7 @@
       <div id="sheet">
         <h1>奶蛙跑酷</h1>
         <p id="blurb" class="sub">点一下开始。奶蛙对着你笑完，就自己开跑。</p>
+        <p id="spin-hint" class="sub">按住角色左右拖，可以看前后左右。</p>
         <button id="start" class="primary" disabled>奶蛙正在赶来…</button>
       </div>
     </section>
@@ -343,6 +348,6 @@
         <button id="again" class="ghost" type="button">再来一次</button>
       </div>
     </section>
-    <script type="module" src="./game.js?v=31"></script>
+    <script type="module" src="./game.js?v=32"></script>
   </body>
 </html>

@@ -6,6 +6,7 @@ import {
   coverDistance,
   chaserMood,
   clampLane,
+  BOOST_PRICE,
   JET_PRICE,
   buyKey,
   comboMultiplier,
@@ -49,6 +50,7 @@ const KEY_KEY = 'naiwa-keys';
 const COIN_KEY = 'naiwa-coins';
 const HERO_KEY = 'naiwa-hero';
 const JET_KEY = 'naiwa-jets';
+const BOOST_KEY = 'naiwa-boosts';
 
 function readBest() {
   try {
@@ -106,6 +108,29 @@ function writeJets(count) {
   }
 }
 
+function readBoosts() {
+  try {
+    const value = Number(localStorage.getItem(BOOST_KEY) || 0);
+    return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+  } catch (error) {
+    console.warn('naiwa.boosts', error);
+    return 0;
+  }
+}
+
+function writeBoosts(count) {
+  try {
+    localStorage.setItem(BOOST_KEY, String(Math.max(0, Math.floor(count))));
+  } catch (error) {
+    console.warn('naiwa.boosts', error);
+  }
+}
+
+function normalizeHero(id) {
+  if (id === 'dudu' || id === 'tao') return id;
+  return 'frog';
+}
+
 function writeCoins(count) {
   try {
     localStorage.setItem(COIN_KEY, String(Math.max(0, Math.floor(count))));
@@ -116,7 +141,7 @@ function writeCoins(count) {
 
 function readHero() {
   try {
-    return localStorage.getItem(HERO_KEY) === 'dudu' ? 'dudu' : 'frog';
+    return normalizeHero(localStorage.getItem(HERO_KEY));
   } catch (error) {
     console.warn('naiwa.hero', error);
     return 'frog';
@@ -125,7 +150,7 @@ function readHero() {
 
 function writeHero(id) {
   try {
-    localStorage.setItem(HERO_KEY, id === 'dudu' ? 'dudu' : 'frog');
+    localStorage.setItem(HERO_KEY, normalizeHero(id));
   } catch (error) {
     console.warn('naiwa.hero', error);
   }
@@ -482,6 +507,31 @@ function makeSuit() {
   return suit;
 }
 
+function makeMic() {
+  const mic = new THREE.Group();
+  mic.name = 'mic';
+  mic.visible = false;
+  const held = new THREE.Group();
+  held.position.set(0.34, 0.7, 0.12);
+  held.rotation.z = -0.4;
+  const metal = mat('#d5dae0', { metalness: 0.62, roughness: 0.28 });
+  const black = mat('#1b1b1b', { roughness: 0.4 });
+  const grille = new THREE.Mesh(new THREE.SphereGeometry(0.1, 18, 14), metal);
+  grille.position.y = 0.3;
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.072, 14, 10), mat('#9aa3ad', { metalness: 0.45, roughness: 0.35 }));
+  cap.scale.y = 0.5;
+  cap.position.y = 0.35;
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.016, 8, 18), black);
+  ring.rotation.x = Math.PI / 2;
+  ring.position.y = 0.22;
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.038, 0.48, 12), black);
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.044, 0.044, 0.034, 12), mat('#c6a15a', { metalness: 0.55, roughness: 0.32 }));
+  band.position.y = 0.14;
+  held.add(grille, cap, ring, handle, band);
+  mic.add(held);
+  return mic;
+}
+
 function coin() {
   const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.12, 18), mat('#ffd24a', { metalness: 0.35, roughness: 0.28 }));
   mesh.rotation.z = Math.PI / 2;
@@ -537,6 +587,22 @@ function firstMesh(root) {
   return found;
 }
 
+function spinFace(root) {
+  root.traverse((node) => {
+    if (!node.isMesh) return;
+    const pos = node.geometry.attributes.position;
+    const nrm = node.geometry.attributes.normal;
+    for (let i = 0; i < pos.count; i += 1) {
+      pos.setXYZ(i, -pos.getX(i), pos.getY(i), -pos.getZ(i));
+      if (nrm) nrm.setXYZ(i, -nrm.getX(i), nrm.getY(i), -nrm.getZ(i));
+    }
+    pos.needsUpdate = true;
+    if (nrm) nrm.needsUpdate = true;
+    node.geometry.computeBoundingBox();
+    node.geometry.computeBoundingSphere();
+  });
+}
+
 /** 原模型没有骨骼。按头、手臂、腿把顶点分开，跑步时各自绕关节转。 */
 function makePosable(template) {
   const geometry = template.geometry.clone();
@@ -553,12 +619,48 @@ function makePosable(template) {
   const armL = new Float32Array(count);
   const armR = new Float32Array(count);
   const head = new Float32Array(count);
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
   for (let i = 0; i < count; i += 1) {
     const x = rest[i * 3];
     const y = rest[i * 3 + 1];
-    let leg = smoothstep(0.25, 0.04, y);
-    let arm = smoothstep(0.04, 0.1, Math.abs(x)) * smoothstep(0.18, 0.3, y) * (1 - smoothstep(0.44, 0.52, y));
-    const headW = smoothstep(0.46, 0.56, y);
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  }
+  const height = Math.max(0.001, maxY - minY);
+  const width = Math.max(0.001, maxX - minX);
+  const tall = height > width * 2.2;
+  const midX = (minX + maxX) * 0.5;
+  const pivots = tall
+    ? {
+        legL: [midX - width * 0.18, minY + height * 0.46, 0],
+        legR: [midX + width * 0.18, minY + height * 0.46, 0],
+        armL: [midX - width * 0.42, minY + height * 0.68, 0],
+        armR: [midX + width * 0.42, minY + height * 0.68, 0],
+        head: [midX, minY + height * 0.8, 0],
+      }
+    : PIVOT;
+  for (let i = 0; i < count; i += 1) {
+    const x = rest[i * 3];
+    const y = rest[i * 3 + 1];
+    let leg = 0;
+    let arm = 0;
+    let headW = 0;
+    if (tall) {
+      const ny = (y - minY) / height;
+      const nx = (x - midX) / (width * 0.5);
+      leg = smoothstep(0.48, 0.05, ny);
+      arm = smoothstep(0.2, 0.55, Math.abs(nx)) * smoothstep(0.42, 0.55, ny) * (1 - smoothstep(0.74, 0.84, ny));
+      headW = smoothstep(0.78, 0.88, ny);
+    } else {
+      leg = smoothstep(0.25, 0.04, y);
+      arm = smoothstep(0.04, 0.1, Math.abs(x)) * smoothstep(0.18, 0.3, y) * (1 - smoothstep(0.44, 0.52, y));
+      headW = smoothstep(0.46, 0.56, y);
+    }
     if (headW > 0.15) arm = 0;
     if (leg >= arm) arm = 0;
     else leg = 0;
@@ -569,7 +671,7 @@ function makePosable(template) {
     armR[i] = arm * (1 - sideL);
     head[i] = headW;
   }
-  return { root, mesh, material, rest, count, legL, legR, armL, armR, head };
+  return { root, mesh, material, rest, count, legL, legR, armL, armR, head, pivots };
 }
 
 function posePart(x, y, z, weight, pivot, rx, rz) {
@@ -626,16 +728,17 @@ function paintUgly(rig) {
 function poseRig(rig, angles) {
   if (!rig) return;
   const { rest, count } = rig;
+  const pivots = rig.pivots || PIVOT;
   const arr = rig.mesh.geometry.attributes.position.array;
   for (let i = 0; i < count; i += 1) {
     let x = rest[i * 3];
     let y = rest[i * 3 + 1];
     let z = rest[i * 3 + 2];
-    [x, y, z] = posePart(x, y, z, rig.legL[i], PIVOT.legL, angles.legL, 0);
-    [x, y, z] = posePart(x, y, z, rig.legR[i], PIVOT.legR, angles.legR, 0);
-    [x, y, z] = posePart(x, y, z, rig.armL[i], PIVOT.armL, angles.armL, angles.armZL || 0);
-    [x, y, z] = posePart(x, y, z, rig.armR[i], PIVOT.armR, angles.armR, angles.armZR || 0);
-    [x, y, z] = posePart(x, y, z, rig.head[i], PIVOT.head, angles.head, 0);
+    [x, y, z] = posePart(x, y, z, rig.legL[i], pivots.legL, angles.legL, 0);
+    [x, y, z] = posePart(x, y, z, rig.legR[i], pivots.legR, angles.legR, 0);
+    [x, y, z] = posePart(x, y, z, rig.armL[i], pivots.armL, angles.armL, angles.armZL || 0);
+    [x, y, z] = posePart(x, y, z, rig.armR[i], pivots.armR, angles.armR, angles.armZR || 0);
+    [x, y, z] = posePart(x, y, z, rig.head[i], pivots.head, angles.head, 0);
     arr[i * 3] = x;
     arr[i * 3 + 1] = y;
     arr[i * 3 + 2] = z;
@@ -873,6 +976,7 @@ function freshRun() {
     poop: 0,
     shroom: 0,
     noodle: 0,
+    boost: 0,
     board: 0,
     chasePause: 0,
     doubleRest: false,
@@ -930,11 +1034,13 @@ export function createGame(canvas, hooks) {
   let playerMats = [];
   let playerRig = null;
   let playerSuit = null;
+  let playerMic = null;
   let chaserRig = null;
   let modelReady = false;
   let heroId = readHero();
   let frogSource = null;
   let duduSource = null;
+  let taoSource = null;
   const loader = new GLTFLoader();
   loader.load(
     'assets/frog.glb',
@@ -958,9 +1064,20 @@ export function createGame(canvas, hooks) {
     undefined,
     (error) => console.warn('naiwa.dudu', error),
   );
+  loader.load(
+    'assets/tao.glb',
+    (gltf) => {
+      taoSource = gltf.scene;
+      spinFace(taoSource);
+      if (heroId === 'tao' && modelReady) mountFrogs(heroSource());
+    },
+    undefined,
+    (error) => console.warn('naiwa.tao', error),
+  );
 
   function heroSource() {
     if (heroId === 'dudu' && duduSource) return duduSource;
+    if (heroId === 'tao' && taoSource) return taoSource;
     return frogSource || fallbackFrog();
   }
 
@@ -982,6 +1099,8 @@ export function createGame(canvas, hooks) {
     player.add(playerRig.root);
     playerSuit = makeSuit();
     playerRig.root.add(playerSuit);
+    playerMic = makeMic();
+    playerRig.root.add(playerMic);
     chaser.add(chaserRig.root);
     const hat = makeHat();
     hat.position.y = villainBox.max.y + 0.02;
@@ -1079,7 +1198,7 @@ export function createGame(canvas, hooks) {
     const speed = baseSpeed(run.distance + 80) * (run.shoes > 0 ? 1.4 : 1);
     while (run.cursor < run.z + 95) {
       let gap = minSpacing(speed, run.distance + (run.cursor - run.z));
-      if (run.distance > 600) gap *= 0.78;
+      if (run.distance > 600) gap *= 0.92;
       if (run.lastForced === 'high' || run.lastForced === 'low') gap += speed * 0.35;
       run.cursor += gap;
       while (run.poopAt < run.cursor - 6) {
@@ -1134,7 +1253,7 @@ export function createGame(canvas, hooks) {
         run.lastForced = 'low';
         continue;
       }
-      if (roll < 0.74 && band > 40 && !crowdsNoodle(z + 26, 10)) {
+      if (roll < 0.74 && band > 40 && !crowdsPit(z + 26, 10)) {
         const styles = ['oncoming', 'oncoming2', 'oncoming3'];
         const obj = spawn(styles[(Math.random() * 3) | 0], 'oncoming', z + 26, lane(), 8);
         obj.half = 0.95;
@@ -1142,19 +1261,19 @@ export function createGame(canvas, hooks) {
         run.lastForced = '';
         continue;
       }
-      if (roll < 0.86 && band > 70 && !crowdsNoodle(z + 14, 28)) {
+      if (roll < 0.86 && band > 70 && !crowdsPit(z + 14, 28)) {
         run.cursor = spawnRide(z, lane());
         run.lastForced = '';
         continue;
       }
-      if (roll < 0.93 && band > 90) {
+      if (roll < 0.93 && band > 90 && !crowdsPit(z, 4)) {
         const open = lane();
         for (let i = 0; i < 3; i += 1) if (i !== open) spawn('pit', 'pit', z, i, 2.4);
         coinLine(z + 3.2, open);
         run.lastForced = 'fatal';
         continue;
       }
-      if (band > 50) {
+      if (band > 50 && !crowdsPit(z, 8)) {
         spawn('truck', 'fatal', z, lane(), 5.2);
         run.lastForced = 'fatal';
         continue;
@@ -1178,22 +1297,46 @@ export function createGame(canvas, hooks) {
     obj.item = 'shroom';
   }
 
-  function noodlePad(z) {
-    return Math.max(18, baseSpeed(z) * 1.25);
+  function noodleZone(stopZ) {
+    const speed = baseSpeed(stopZ);
+    return {
+      before: Math.max(20, speed * 1.15),
+      after: Math.max(10, speed * 0.55),
+      pitBefore: Math.max(36, speed * 2.2),
+      pitAfter: Math.max(16, speed * 1.05),
+    };
+  }
+
+  function overlapsNoodle(z, len, pits) {
+    const half = Math.max(len, 0) * 0.5;
+    const start = z - half;
+    const end = z + half;
+    return LYRIC_STOPS.some((stop) => {
+      const zone = noodleZone(stop.z);
+      const before = pits ? zone.pitBefore : zone.before;
+      const after = pits ? zone.pitAfter : zone.after;
+      return end > stop.z - before && start < stop.z + after;
+    });
   }
 
   function crowdsNoodle(z, len = 1) {
-    const half = Math.max(len, 0) * 0.5;
-    return LYRIC_STOPS.some((stop) => Math.abs(stop.z - z) < noodlePad(stop.z) + half);
+    return overlapsNoodle(z, len, false);
+  }
+
+  function crowdsPit(z, len = 1) {
+    return overlapsNoodle(z, len, true);
   }
 
   function clearAroundNoodle(z) {
-    const pad = noodlePad(z);
+    const zone = noodleZone(z);
     for (let i = active.length - 1; i >= 0; i -= 1) {
       const obj = active[i];
       if (obj.kind === 'coin' || obj.item === 'noodle') continue;
       const half = (obj.len || 1) * 0.5;
-      if (Math.abs(obj.z - z) >= pad + half) continue;
+      const hard = obj.kind === 'pit' || obj.kind === 'fatal' || obj.kind === 'oncoming' || obj.kind === 'train' || obj.kind === 'ramp';
+      const before = hard ? zone.pitBefore : zone.before;
+      const after = hard ? zone.pitAfter : zone.after;
+      if (obj.z + half <= z - before || obj.z - half >= z + after) continue;
       give(active.splice(i, 1)[0]);
     }
   }
@@ -1238,7 +1381,7 @@ export function createGame(canvas, hooks) {
   }
 
   function fail(reason) {
-    if (run.phase !== 'play') return;
+    if (run.phase !== 'play' || run.boost > 0) return;
     run.phase = 'ending';
     run.reason = reason;
     run.endT = 0;
@@ -1251,7 +1394,30 @@ export function createGame(canvas, hooks) {
     navigator.vibrate?.(50);
   }
 
+  let showcaseYaw = 0;
+  let showcasePitch = 0.22;
+  function orbitCamera(x, z) {
+    const dist = heroId === 'dudu' ? 4.8 : heroId === 'tao' ? 2.7 : 3.05;
+    const lookY = heroId === 'dudu' ? 0.72 : heroId === 'tao' ? 0.92 : 0.95;
+    const flat = Math.cos(showcasePitch);
+    camera.position.set(
+      x + Math.sin(showcaseYaw) * dist * flat,
+      lookY + Math.sin(showcasePitch) * dist * 0.55,
+      z - Math.cos(showcaseYaw) * dist * flat,
+    );
+    camera.lookAt(x, lookY, z);
+  }
+
   function faceCamera(x, z) {
+    if (run.phase === 'title' && laughT < 0) {
+      orbitCamera(x, z);
+      return;
+    }
+    if (heroId === 'tao') {
+      camera.position.set(x, 1.22, z - 3.3);
+      camera.lookAt(x, 0.95, z);
+      return;
+    }
     if (heroId === 'dudu') {
       camera.position.set(x, 1.45, z - 4.4);
       camera.lookAt(x, 0.78, z);
@@ -1262,7 +1428,7 @@ export function createGame(canvas, hooks) {
   }
 
   function bump() {
-    if (run.phase !== 'play' || run.iframes > 0) return;
+    if (run.phase !== 'play' || run.iframes > 0 || run.boost > 0) return;
     if (run.board > 0) {
       run.board = 0;
       run.iframes = 0.35;
@@ -1288,13 +1454,16 @@ export function createGame(canvas, hooks) {
   function collide(prevZ) {
     if (run.phase !== 'play') return;
     const lane = nearestLane(run.x);
-    const spanStart = Math.min(prevZ, run.z) - 0.12;
-    const spanEnd = Math.max(prevZ, run.z) + 0.12;
+    const spanStart = Math.min(prevZ, run.z);
+    const spanEnd = Math.max(prevZ, run.z);
     for (const obj of active) {
       if (obj.gone || obj.cleared || obj.kind === 'ramp' || obj.kind === 'train') continue;
-      const near = obj.z + obj.len * 0.5 >= spanStart && obj.z - obj.len * 0.5 <= spanEnd;
+      const item = obj.kind === 'coin' || obj.kind === 'item';
+      const pad = item ? 1.4 : 0.2;
+      const near = obj.z + obj.len * 0.5 >= spanStart - pad && obj.z - obj.len * 0.5 <= spanEnd + pad;
       if (!near) continue;
-      const sameLane = obj.lane == null || Math.abs(run.x - LANES[obj.lane]) < (obj.half || 0.82);
+      const reach = item ? 1.9 : (obj.half || 0.82);
+      const sameLane = obj.lane == null || Math.abs(run.x - LANES[obj.lane]) < reach;
       if (run.fly > 0 && obj.kind !== 'coin' && obj.kind !== 'item') {
         obj.cleared = true;
         continue;
@@ -1302,9 +1471,11 @@ export function createGame(canvas, hooks) {
       if (obj.kind === 'coin' || obj.kind === 'item') {
         if (!sameLane && run.magnet <= 0) continue;
         const feet = player.position.y;
-        const top = feet + (run.mode === 'sliding' ? 0.6 : 1.55);
-        const coinY = obj.mesh.position.y;
-        if (coinY < feet - 0.15 || coinY > top + 0.2) continue;
+        const y = obj.mesh.position.y;
+        if (y >= 1.65) {
+          const top = feet + (run.mode === 'sliding' ? 1.15 : 1.9);
+          if (y < feet - 1.1 || y > top + 0.55) continue;
+        }
         if (obj.kind === 'coin') {
           gainCoins(1);
           points(10);
@@ -1388,6 +1559,8 @@ export function createGame(canvas, hooks) {
     run.slideCd = Math.max(0, run.slideCd - dt);
     run.iframes = Math.max(0, run.iframes - dt);
     run.inv = Math.max(0, run.inv - dt);
+    run.boost = Math.max(0, run.boost - dt);
+    if (run.boost > 0) run.inv = Math.max(run.inv, run.boost);
     run.magnet = Math.max(0, run.magnet - dt);
     run.shoes = Math.max(0, run.shoes - dt);
     run.smoke = Math.max(0, run.smoke - dt);
@@ -1399,24 +1572,25 @@ export function createGame(canvas, hooks) {
     run.shroom = Math.max(0, run.shroom - dt);
     run.noodle = Math.max(0, run.noodle - dt);
     if (playerSuit) playerSuit.visible = run.noodle > 0;
+    if (playerMic) playerMic.visible = run.boost > 0;
     run.board = Math.max(0, run.board - dt);
     run.stumble = Math.max(0, run.stumble - dt);
     const target = LANES[run.lane];
-    run.x += (target - run.x) * (1 - Math.exp(-18 * dt));
+    run.x += (target - run.x) * (1 - Math.exp(-28 * dt));
     if (run.mode === 'jumping') {
       run.modeT += dt;
-      if (run.modeT >= 0.95) {
+      if (run.modeT >= 0.68) {
         run.mode = 'running';
-        run.jumpCd = 0.22;
+        run.jumpCd = 0.04;
       }
     } else if (run.mode === 'sliding') {
       run.modeT += dt;
-      if (run.modeT >= 0.95) {
+      if (run.modeT >= 0.58) {
         run.mode = 'running';
-        run.slideCd = 0.16;
+        run.slideCd = 0.04;
       }
     }
-    const hop = run.mode === 'jumping' ? Math.sin(Math.min(1, run.modeT / 0.95) * Math.PI) * 3.35 * (run.shoes > 0 ? 1.45 : 1) : 0;
+    const hop = run.mode === 'jumping' ? Math.sin(Math.min(1, run.modeT / 0.68) * Math.PI) * 3.15 * (run.shoes > 0 ? 1.35 : 1) : 0;
     const arc = run.fly > 0 ? Math.max(3.4, hop) : hop;
     const jump = arc;
     const stumbleMul = run.stumble > 0 ? 0.62 : 1;
@@ -1428,7 +1602,7 @@ export function createGame(canvas, hooks) {
     points(step);
     const feet = run.mode === 'jumping' ? run.jumpBase + arc : run.floor;
     const ride = rideFloor(feet);
-    if (ride.hit) fail('train');
+    if (ride.hit && !(run.boost > 0)) fail('train');
     if (run.phase === 'play') run.floor = ride.floor;
     const bodyY = run.fly > 0 ? 3.6 : run.mode === 'jumping' ? run.jumpBase + arc : run.floor;
     player.position.set(run.x, bodyY, run.z);
@@ -1438,11 +1612,11 @@ export function createGame(canvas, hooks) {
     player.rotation.y = Math.PI;
     player.rotation.z = (target - run.x) * -0.45;
     if (run.mode === 'sliding') {
-      player.scale.set(1.12, 0.28, 1.35);
+      player.scale.set(1.08, 0.42, 1.2);
       player.rotation.x = 0.12;
       poseRig(playerRig, { legL: 0.7, legR: 0.7, armL: -0.45, armR: -0.45, head: 0.1, armZL: 0.12, armZR: -0.12 });
     } else if (run.mode === 'jumping') {
-      const u = Math.min(1, run.modeT / 0.95);
+      const u = Math.min(1, run.modeT / 0.68);
       player.scale.set(1, 1, 1);
       if (u < 0.18) {
         player.rotation.x = 0.2;
@@ -1555,6 +1729,7 @@ export function createGame(canvas, hooks) {
       run.gap = stepped.gap;
       run.chaserSpeed = stepped.speed;
     }
+    if (run.boost > 0 && run.gap < 4) run.gap = 4;
     if (run.gap <= 0) fail('caught');
     chaser.visible = run.chasePause <= 0 && run.gap < 9;
     chaser.scale.setScalar(1);
@@ -1712,6 +1887,7 @@ export function createGame(canvas, hooks) {
     if (run.poop > 0) effects.push({ name: '便便', t: run.poop });
     if (run.shroom > 0) effects.push({ name: '蘑菇', t: run.shroom });
     if (run.noodle > 0) effects.push({ name: '牛肉面', t: run.noodle });
+    if (run.boost > 0) effects.push({ name: '话筒', t: run.boost });
     if (run.board > 0) effects.push({ name: '滑板', t: run.board });
     hooks.onHud({
       score: Math.floor(run.score),
@@ -1719,6 +1895,8 @@ export function createGame(canvas, hooks) {
       coins: run.coins,
       keys: readKeys(),
       jets: readJets(),
+      boosts: readBoosts(),
+      hero: heroId,
       combo: comboMultiplier(run.clean),
       gap: run.gap,
       mood: chaserMood(run.gap),
@@ -1801,6 +1979,7 @@ export function createGame(canvas, hooks) {
       } else {
         if (!run.deathLaugh) {
           run.deathLaugh = true;
+          if (heroId === 'tao') laughDur = 1.15;
           laughT = 0;
           laughTold = false;
           hooks.onDeathLaugh?.();
@@ -1848,6 +2027,24 @@ export function createGame(canvas, hooks) {
 
   resize();
   window.addEventListener('resize', resize);
+  let orbitDrag = null;
+  window.addEventListener('pointerdown', (event) => {
+    if (run.phase !== 'title' || laughT >= 0) return;
+    if (event.target instanceof Element && event.target.closest('button, a, #cast, #store, #sheet')) return;
+    orbitDrag = { id: event.pointerId, x: event.clientX, y: event.clientY };
+  });
+  window.addEventListener('pointermove', (event) => {
+    if (!orbitDrag || event.pointerId !== orbitDrag.id) return;
+    showcaseYaw -= (event.clientX - orbitDrag.x) * 0.018;
+    showcasePitch = Math.max(0.02, Math.min(0.9, showcasePitch + (event.clientY - orbitDrag.y) * 0.004));
+    orbitDrag.x = event.clientX;
+    orbitDrag.y = event.clientY;
+  });
+  const endOrbit = (event) => {
+    if (orbitDrag && event.pointerId === orbitDrag.id) orbitDrag = null;
+  };
+  window.addEventListener('pointerup', endOrbit);
+  window.addEventListener('pointercancel', endOrbit);
   loop();
 
   return {
@@ -1855,8 +2052,10 @@ export function createGame(canvas, hooks) {
       return heroId;
     },
     setHero(id) {
-      heroId = id === 'dudu' ? 'dudu' : 'frog';
+      heroId = normalizeHero(id);
       writeHero(heroId);
+      showcaseYaw = 0;
+      showcasePitch = 0.22;
       if (modelReady && (run.phase === 'title' || run.phase === 'over')) mountFrogs(heroSource());
       return heroId;
     },
@@ -1874,7 +2073,7 @@ export function createGame(canvas, hooks) {
         run.mode = 'jumping';
         run.modeT = 0;
         run.jumpBase = run.floor;
-        run.iframes = 0.3;
+        run.iframes = 0.16;
         hooks.audio.jump();
       }
       if (dir === 'up' && run.slideCd <= 0 && run.mode !== 'sliding') {
@@ -1903,7 +2102,7 @@ export function createGame(canvas, hooks) {
       run.board = 8;
     },
     wallet() {
-      return { coins: readCoins(), keys: readKeys(), jets: readJets() };
+      return { coins: readCoins(), keys: readKeys(), jets: readJets(), boosts: readBoosts() };
     },
     buyKey() {
       const next = buyKey(readCoins(), readKeys());
@@ -1924,6 +2123,23 @@ export function createGame(canvas, hooks) {
       writeJets(readJets() - 1);
       run.fly = itemDuration('jet');
       hooks.audio.power();
+      hud();
+      return true;
+    },
+    buyBoost() {
+      const next = buyKey(readCoins(), readBoosts(), BOOST_PRICE);
+      if (!next.ok) return { coins: next.coins, boosts: readBoosts(), ok: false };
+      writeCoins(next.coins);
+      writeBoosts(next.keys);
+      return { coins: next.coins, boosts: next.keys, ok: true };
+    },
+    useBoost(seconds) {
+      if (heroId !== 'tao' || run.phase !== 'play' || run.boost > 0 || readBoosts() < 1) return false;
+      writeBoosts(readBoosts() - 1);
+      const dur = Number.isFinite(seconds) && seconds > 0.4 ? seconds : 8.6;
+      run.boost = dur;
+      run.inv = Math.max(run.inv, dur);
+      if (run.gap < 4) run.gap = 4;
       hud();
       return true;
     },

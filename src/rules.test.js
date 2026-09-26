@@ -8,11 +8,20 @@ import {
   comboMultiplier,
   minSpacing,
   itemDuration,
+  BOOST_PRICE,
+  JET_PRICE,
   resolveCollision,
   rollItem,
   stepChaser,
   swipeDirection,
 } from './rules.js';
+
+test('飞行 300，加速话筒 500', () => {
+  assert.equal(JET_PRICE, 300);
+  assert.equal(BOOST_PRICE, 500);
+  assert.equal(buyKey(500, 0, BOOST_PRICE).ok, true);
+  assert.equal(buyKey(299, 0, JET_PRICE).ok, false);
+});
 
 test('短滑动不触发，上滑是 up', () => {
   assert.equal(swipeDirection(8, -10), null);

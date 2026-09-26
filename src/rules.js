@@ -41,7 +41,7 @@ export function coverDistance(start, seconds) {
 
 /** 障碍间距随距离变密，但始终留得下一次跳跃的反应时间。 */
 export function minSpacing(speed, distance) {
-  const reaction = 0.78 - Math.min(Math.max(distance, 0) / 900, 1) * 0.26;
+  const reaction = 0.8 - Math.min(Math.max(distance, 0) / 900, 1) * 0.22;
   return Math.max(8.2, speed * reaction);
 }
 
@@ -99,7 +99,8 @@ export function stepChaser(gap, speed, dt, playerSpeed, distance, options) {
 }
 
 export const KEY_PRICE = 200;
-export const JET_PRICE = 2000;
+export const JET_PRICE = 300;
+export const BOOST_PRICE = 500;
 
 /** 金币够就扣掉，换一把钥匙。不够则原样返回。 */
 export function buyKey(coins, keys, price = KEY_PRICE) {

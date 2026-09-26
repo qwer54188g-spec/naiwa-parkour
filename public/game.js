@@ -25036,6 +25036,7 @@ function itemDuration(name) {
 var BEST_KEY = "naiwa-best";
 var KEY_KEY = "naiwa-keys";
 var COIN_KEY = "naiwa-coins";
+var HERO_KEY = "naiwa-hero";
 var JET_KEY = "naiwa-jets";
 function readBest() {
   try {
@@ -25092,6 +25093,21 @@ function writeCoins(count) {
     localStorage.setItem(COIN_KEY, String(Math.max(0, Math.floor(count))));
   } catch (error) {
     console.warn("naiwa.coins", error);
+  }
+}
+function readHero() {
+  try {
+    return localStorage.getItem(HERO_KEY) === "dudu" ? "dudu" : "frog";
+  } catch (error) {
+    console.warn("naiwa.hero", error);
+    return "frog";
+  }
+}
+function writeHero(id) {
+  try {
+    localStorage.setItem(HERO_KEY, id === "dudu" ? "dudu" : "frog");
+  } catch (error) {
+    console.warn("naiwa.hero", error);
   }
 }
 function writeBest(score) {
@@ -25750,20 +25766,41 @@ function createGame(canvas, hooks) {
   let playerRig = null;
   let chaserRig = null;
   let modelReady = false;
+  let heroId = readHero();
+  let frogSource = null;
+  let duduSource = null;
   const loader = new GLTFLoader();
   loader.load(
     "assets/frog.glb",
-    (gltf) => mountFrogs(gltf.scene),
+    (gltf) => {
+      frogSource = gltf.scene;
+      mountFrogs(heroSource());
+    },
     void 0,
     (error) => {
       console.warn("naiwa.model", error);
-      mountFrogs(fallbackFrog());
+      frogSource = fallbackFrog();
+      mountFrogs(heroSource());
     }
   );
+  loader.load(
+    "assets/dudu.glb",
+    (gltf) => {
+      duduSource = gltf.scene;
+      if (heroId === "dudu" && modelReady) mountFrogs(heroSource());
+    },
+    void 0,
+    (error) => console.warn("naiwa.dudu", error)
+  );
+  function heroSource() {
+    if (heroId === "dudu" && duduSource) return duduSource;
+    return frogSource || fallbackFrog();
+  }
   function mountFrogs(source) {
     player.clear();
     chaser.clear();
     const mesh = firstMesh(source);
+    const chaserMesh = firstMesh(frogSource || source);
     if (!mesh) {
       player.add(source);
       modelReady = true;
@@ -25771,8 +25808,8 @@ function createGame(canvas, hooks) {
       return;
     }
     playerRig = makePosable(mesh);
-    chaserRig = makePosable(mesh);
-    const heroBox = fitWidth(playerRig.root, 1.5);
+    chaserRig = makePosable(chaserMesh || mesh);
+    fitWidth(playerRig.root, 1.5);
     const villainBox = fitWidth(chaserRig.root, 1.78);
     player.add(playerRig.root);
     chaser.add(chaserRig.root);
@@ -25782,8 +25819,9 @@ function createGame(canvas, hooks) {
     bottle.position.set(0.55, villainBox.max.y * 0.5, -0.28);
     chaser.add(hat, bottle);
     playerMats = [playerRig.material];
+    const first = !modelReady;
     modelReady = true;
-    hooks.onReady();
+    if (first) hooks.onReady();
   }
   const pools = /* @__PURE__ */ new Map();
   const active = [];
@@ -25982,6 +26020,11 @@ function createGame(canvas, hooks) {
     navigator.vibrate?.(50);
   }
   function faceCamera(x, z) {
+    if (heroId === "dudu") {
+      camera.position.set(x, 1.45, z - 4.4);
+      camera.lookAt(x, 0.78, z);
+      return;
+    }
     camera.position.set(x, 1.2, z - 2.7);
     camera.lookAt(x, 1.02, z);
   }
@@ -26419,8 +26462,7 @@ function createGame(canvas, hooks) {
         player.position.set(0, breathe * 0.015, 0);
         poseRig(playerRig, { legL: 0, legR: 0, armL: 0.05, armR: 0.05, head: breathe * 0.04, armZL: 0.1, armZR: -0.1 });
       }
-      camera.position.set(0, 1.2, -2.7);
-      camera.lookAt(0, 1.02, 0);
+      faceCamera(0, 0);
       paintTrack();
       shadow.position.set(0, 0.04, 0);
       renderer.render(scene, camera);
@@ -26501,6 +26543,15 @@ function createGame(canvas, hooks) {
   window.addEventListener("resize", resize);
   loop();
   return {
+    hero() {
+      return heroId;
+    },
+    setHero(id) {
+      heroId = id === "dudu" ? "dudu" : "frog";
+      writeHero(heroId);
+      if (modelReady && (run.phase === "title" || run.phase === "over")) mountFrogs(heroSource());
+      return heroId;
+    },
     playLaugh(duration) {
       laughDur = Number.isFinite(duration) && duration > 0.5 ? duration : 6.1;
       laughT = 0;
@@ -26594,6 +26645,11 @@ function createGame(canvas, hooks) {
 // src/main.js
 var audio = createAudio();
 var laugh = document.querySelector("#laugh");
+var duduLine = document.querySelector("#dudu-line");
+var duduName = document.querySelector("#dudu-name");
+var cast = document.querySelector("#cast");
+var castOpenBtn = document.querySelector("#cast-open");
+var castCloseBtn = document.querySelector("#cast-close");
 var startBtn = document.querySelector("#start");
 var againBtn = document.querySelector("#again");
 var reviveBtn = document.querySelector("#revive");
@@ -26624,6 +26680,13 @@ function paintShop() {
   jetNote.textContent = jetEnough ? "" : "\u91D1\u5E01\u4E0D\u591F";
   useJetBtn.textContent = `\u98DE\u884C ${pocket.jets}`;
   useJetBtn.classList.toggle("on", playing && pocket.jets > 0);
+}
+function paintCast() {
+  const current = game.hero();
+  document.querySelectorAll("#cast .pick").forEach((button) => {
+    button.classList.toggle("on", button.dataset.hero === current);
+  });
+  document.querySelector("#blurb").textContent = current === "dudu" ? "\u70B9\u4E00\u4E0B\u5F00\u59CB\u3002\u5148\u542C\u4E00\u904D\u300C\u4F60\u7684\u80C6\u5B50\u771F\u662F\u80A5\u561F\u561F\u7684\u300D\uFF0C\u518D\u81EA\u5DF1\u5F00\u8DD1\u3002" : "\u70B9\u4E00\u4E0B\u5F00\u59CB\u3002\u5976\u86D9\u5BF9\u7740\u4F60\u7B11\u5B8C\uFF0C\u5C31\u81EA\u5DF1\u5F00\u8DD1\u3002";
 }
 function openStore() {
   paintShop();
@@ -26677,6 +26740,7 @@ var game = createGame(document.querySelector("#view"), {
     startBtn.disabled = false;
     startBtn.textContent = "\u5F00\u59CB";
     paintShop();
+    paintCast();
   },
   onLaughEnd() {
     finishIntro();
@@ -26697,6 +26761,17 @@ var game = createGame(document.querySelector("#view"), {
   },
   onChuckle() {
     stopChuckle();
+    if (game.hero() === "dudu") {
+      laugh.pause();
+      try {
+        duduName.currentTime = 0;
+        const pending = duduName.play();
+        if (pending && typeof pending.catch === "function") pending.catch((error) => console.warn("naiwa.dudu", error));
+      } catch (error) {
+        console.warn("naiwa.dudu", error);
+      }
+      return;
+    }
     laugh.loop = false;
     try {
       laugh.currentTime = 0;
@@ -26736,25 +26811,32 @@ var game = createGame(document.querySelector("#view"), {
     poopLaugh = false;
     laugh.loop = false;
     laugh.pause();
+    duduLine.pause();
+    duduName.pause();
     playing = false;
     document.body.classList.remove("live", "over", "intro");
     document.body.classList.add("ending");
     useJetBtn.classList.remove("on");
   },
   onDeathLaugh() {
+    const voice = game.hero() === "dudu" ? duduLine : laugh;
     laugh.loop = false;
     try {
-      laugh.currentTime = 0;
-      const pending = laugh.play();
+      laugh.pause();
+      duduLine.pause();
+      voice.currentTime = 0;
+      const pending = voice.play();
       if (pending && typeof pending.catch === "function") pending.catch((error) => console.warn("naiwa.laugh", error));
     } catch (error) {
       console.warn("naiwa.laugh", error);
     }
-    wireLaugh();
+    if (voice === laugh) wireLaugh();
   },
   onOver(info) {
     playing = false;
     laugh.pause();
+    duduLine.pause();
+    duduName.pause();
     document.body.classList.remove("live", "ending", "intro");
     document.body.classList.add("over");
     document.querySelector("#over-title").textContent = titles[info.reason] || "\u8FD9\u5C40\u7ED3\u675F\u4E86";
@@ -26768,6 +26850,7 @@ var game = createGame(document.querySelector("#view"), {
   }
 });
 paintShop();
+paintCast();
 function startIntro() {
   if (laughing || playing || armed) return;
   armed = true;
@@ -26775,15 +26858,19 @@ function startIntro() {
   document.body.classList.remove("over", "live");
   document.body.classList.add("intro");
   closeStore();
+  cast.classList.remove("open");
+  const voice = game.hero() === "dudu" ? duduLine : laugh;
   try {
-    laugh.currentTime = 0;
-    const pending = laugh.play();
+    laugh.pause();
+    duduLine.pause();
+    voice.currentTime = 0;
+    const pending = voice.play();
     if (pending && typeof pending.catch === "function") pending.catch((error) => console.warn("naiwa.laugh", error));
   } catch (error) {
     console.warn("naiwa.laugh", error);
   }
-  wireLaugh();
-  const duration = Number.isFinite(laugh.duration) && laugh.duration > 0.5 ? laugh.duration : 6.1;
+  if (voice === laugh) wireLaugh();
+  const duration = Number.isFinite(voice.duration) && voice.duration > 0.4 ? voice.duration : game.hero() === "dudu" ? 2.1 : 6.1;
   game.playLaugh(duration);
 }
 function finishIntro() {
@@ -26795,6 +26882,8 @@ function finishIntro() {
 function begin() {
   audio.unlock()?.catch((error) => console.warn("naiwa.audio", error));
   laugh.pause();
+  duduLine.pause();
+  duduName.pause();
   document.body.classList.remove("over", "intro", "ending");
   document.body.classList.add("live");
   closeStore();
@@ -26831,6 +26920,20 @@ window.addEventListener("pointercancel", () => {
   pointer = null;
 });
 startBtn.addEventListener("click", startIntro);
+castOpenBtn.addEventListener("click", () => {
+  paintCast();
+  cast.classList.add("open");
+});
+castCloseBtn.addEventListener("click", () => cast.classList.remove("open"));
+cast.addEventListener("click", (event) => {
+  if (event.target === cast) cast.classList.remove("open");
+});
+document.querySelectorAll("#cast .pick").forEach((button) => {
+  button.addEventListener("click", () => {
+    game.setHero(button.dataset.hero);
+    paintCast();
+  });
+});
 shopOpenBtn.addEventListener("click", openStore);
 storeCloseBtn.addEventListener("click", closeStore);
 store.addEventListener("click", (event) => {

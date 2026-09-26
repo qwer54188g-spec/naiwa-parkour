@@ -114,7 +114,7 @@
       body.over #title { display: none; }
       body.over #over { display: flex; }
       body.live #title, body.live #over, body.intro #title, body.intro #over,
-      body.ending #title, body.ending #over, body.ending #hud, body.ending #hint, body.ending #shop-open, body.ending #store { display: none; }
+      body.ending #title, body.ending #over, body.ending #hud, body.ending #hint, body.ending #shop-open, body.ending #store, body.ending #cast-open, body.ending #cast { display: none; }
       body.live.over #over { display: flex; }
       h1, h2 { margin: 0; letter-spacing: 0.04em; }
       h1 { font-size: 34px; }
@@ -171,7 +171,28 @@
         line-height: 1;
       }
       #shop-open svg { display: block; }
-      body.live #shop-open, body.intro #shop-open { display: none; }
+      body.live #shop-open, body.intro #shop-open,
+      body.live #cast-open, body.intro #cast-open { display: none; }
+      #cast-open {
+        position: fixed;
+        top: calc(16px + env(safe-area-inset-top));
+        left: 14px;
+        z-index: 4;
+        width: 72px;
+        height: 72px;
+        min-height: 72px;
+        padding: 6px 4px;
+        border-radius: 18px;
+        font-size: 13px;
+      }
+      #cast { position: fixed; inset: 0; z-index: 6; display: none; align-items: center; justify-content: center; padding: 18px; background: rgba(58, 36, 21, 0.38); }
+      #cast.open { display: flex; }
+      body.live #cast, body.intro #cast { display: none; }
+      #cast-card { width: min(360px, 100%); background: var(--cream); border: 3px solid var(--line); border-radius: 18px; padding: 14px; box-shadow: 0 4px 0 var(--line); display: flex; flex-direction: column; gap: 10px; }
+      #cast-head { display: flex; align-items: center; justify-content: space-between; }
+      #cast-close { width: auto; min-height: 36px; padding: 0 12px; font-size: 14px; background: var(--cream); box-shadow: none; }
+      button.pick { background: var(--cream); text-align: left; }
+      button.pick.on { background: var(--yolk); }
       #store {
         position: fixed;
         inset: 0;
@@ -258,7 +279,20 @@
     </div>
     <div id="hint">全是反的：右滑往左，左滑往右，下滑往上跳，上滑往下铲</div>
     <audio id="laugh" preload="auto" src="assets/laugh.m4a"></audio>
+    <audio id="dudu-line" preload="auto" src="assets/dudu-line.m4a"></audio>
+    <audio id="dudu-name" preload="auto" src="assets/dudu-name.m4a"></audio>
     <button id="use-jet" type="button">飞行</button>
+    <button id="cast-open" type="button">角色</button>
+    <div id="cast">
+      <div id="cast-card">
+        <div id="cast-head">
+          <h2>角色</h2>
+          <button id="cast-close" type="button">关闭</button>
+        </div>
+        <button class="pick" type="button" data-hero="frog">奶蛙</button>
+        <button class="pick" type="button" data-hero="dudu">肥嘟嘟袋鼠</button>
+      </div>
+    </div>
     <button id="shop-open" type="button" aria-label="商店">
       <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true">
         <path d="M7 11h14l-1.2 11H8.2L7 11z" fill="#fff6df" stroke="#3a2415" stroke-width="2" stroke-linejoin="round"/>
@@ -294,7 +328,7 @@
     <section id="title">
       <div id="sheet">
         <h1>奶蛙跑酷</h1>
-        <p class="sub">点一下开始。奶蛙对着你笑完，就自己开跑。</p>
+        <p id="blurb" class="sub">点一下开始。奶蛙对着你笑完，就自己开跑。</p>
         <button id="start" class="primary" disabled>奶蛙正在赶来…</button>
       </div>
     </section>
@@ -308,6 +342,6 @@
         <button id="again" class="ghost" type="button">再来一次</button>
       </div>
     </section>
-    <script type="module" src="./game.js?v=22"></script>
+    <script type="module" src="./game.js?v=23"></script>
   </body>
 </html>

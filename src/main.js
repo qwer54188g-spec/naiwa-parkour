@@ -4,6 +4,11 @@ import { JET_PRICE, KEY_PRICE, swipeDirection } from './rules.js';
 
 const audio = createAudio();
 const laugh = document.querySelector('#laugh');
+const duduLine = document.querySelector('#dudu-line');
+const duduName = document.querySelector('#dudu-name');
+const cast = document.querySelector('#cast');
+const castOpenBtn = document.querySelector('#cast-open');
+const castCloseBtn = document.querySelector('#cast-close');
 const startBtn = document.querySelector('#start');
 const againBtn = document.querySelector('#again');
 const reviveBtn = document.querySelector('#revive');
@@ -36,6 +41,16 @@ function paintShop() {
   jetNote.textContent = jetEnough ? '' : '金币不够';
   useJetBtn.textContent = `飞行 ${pocket.jets}`;
   useJetBtn.classList.toggle('on', playing && pocket.jets > 0);
+}
+
+function paintCast() {
+  const current = game.hero();
+  document.querySelectorAll('#cast .pick').forEach((button) => {
+    button.classList.toggle('on', button.dataset.hero === current);
+  });
+  document.querySelector('#blurb').textContent = current === 'dudu'
+    ? '点一下开始。先听一遍「你的胆子真是肥嘟嘟的」，再自己开跑。'
+    : '点一下开始。奶蛙对着你笑完，就自己开跑。';
 }
 
 function openStore() {
@@ -96,6 +111,7 @@ const game = createGame(document.querySelector('#view'), {
     startBtn.disabled = false;
     startBtn.textContent = '开始';
     paintShop();
+    paintCast();
   },
   onLaughEnd() {
     finishIntro();
@@ -118,6 +134,17 @@ const game = createGame(document.querySelector('#view'), {
   },
   onChuckle() {
     stopChuckle();
+    if (game.hero() === 'dudu') {
+      laugh.pause();
+      try {
+        duduName.currentTime = 0;
+        const pending = duduName.play();
+        if (pending && typeof pending.catch === 'function') pending.catch((error) => console.warn('naiwa.dudu', error));
+      } catch (error) {
+        console.warn('naiwa.dudu', error);
+      }
+      return;
+    }
     laugh.loop = false;
     try {
       laugh.currentTime = 0;
@@ -157,25 +184,32 @@ const game = createGame(document.querySelector('#view'), {
     poopLaugh = false;
     laugh.loop = false;
     laugh.pause();
+    duduLine.pause();
+    duduName.pause();
     playing = false;
     document.body.classList.remove('live', 'over', 'intro');
     document.body.classList.add('ending');
     useJetBtn.classList.remove('on');
   },
   onDeathLaugh() {
+    const voice = game.hero() === 'dudu' ? duduLine : laugh;
     laugh.loop = false;
     try {
-      laugh.currentTime = 0;
-      const pending = laugh.play();
+      laugh.pause();
+      duduLine.pause();
+      voice.currentTime = 0;
+      const pending = voice.play();
       if (pending && typeof pending.catch === 'function') pending.catch((error) => console.warn('naiwa.laugh', error));
     } catch (error) {
       console.warn('naiwa.laugh', error);
     }
-    wireLaugh();
+    if (voice === laugh) wireLaugh();
   },
   onOver(info) {
     playing = false;
     laugh.pause();
+    duduLine.pause();
+    duduName.pause();
     document.body.classList.remove('live', 'ending', 'intro');
     document.body.classList.add('over');
     document.querySelector('#over-title').textContent = titles[info.reason] || '这局结束了';
@@ -190,6 +224,7 @@ const game = createGame(document.querySelector('#view'), {
 });
 
 paintShop();
+paintCast();
 
 function startIntro() {
   if (laughing || playing || armed) return;
@@ -198,15 +233,19 @@ function startIntro() {
   document.body.classList.remove('over', 'live');
   document.body.classList.add('intro');
   closeStore();
+  cast.classList.remove('open');
+  const voice = game.hero() === 'dudu' ? duduLine : laugh;
   try {
-    laugh.currentTime = 0;
-    const pending = laugh.play();
+    laugh.pause();
+    duduLine.pause();
+    voice.currentTime = 0;
+    const pending = voice.play();
     if (pending && typeof pending.catch === 'function') pending.catch((error) => console.warn('naiwa.laugh', error));
   } catch (error) {
     console.warn('naiwa.laugh', error);
   }
-  wireLaugh();
-  const duration = Number.isFinite(laugh.duration) && laugh.duration > 0.5 ? laugh.duration : 6.1;
+  if (voice === laugh) wireLaugh();
+  const duration = Number.isFinite(voice.duration) && voice.duration > 0.4 ? voice.duration : game.hero() === 'dudu' ? 2.1 : 6.1;
   game.playLaugh(duration);
 }
 
@@ -220,6 +259,8 @@ function finishIntro() {
 function begin() {
   audio.unlock()?.catch((error) => console.warn('naiwa.audio', error));
   laugh.pause();
+  duduLine.pause();
+  duduName.pause();
   document.body.classList.remove('over', 'intro', 'ending');
   document.body.classList.add('live');
   closeStore();
@@ -261,6 +302,20 @@ window.addEventListener('pointercancel', () => {
 });
 
 startBtn.addEventListener('click', startIntro);
+castOpenBtn.addEventListener('click', () => {
+  paintCast();
+  cast.classList.add('open');
+});
+castCloseBtn.addEventListener('click', () => cast.classList.remove('open'));
+cast.addEventListener('click', (event) => {
+  if (event.target === cast) cast.classList.remove('open');
+});
+document.querySelectorAll('#cast .pick').forEach((button) => {
+  button.addEventListener('click', () => {
+    game.setHero(button.dataset.hero);
+    paintCast();
+  });
+});
 shopOpenBtn.addEventListener('click', openStore);
 storeCloseBtn.addEventListener('click', closeStore);
 store.addEventListener('click', (event) => {

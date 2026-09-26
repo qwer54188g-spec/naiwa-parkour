@@ -18,6 +18,7 @@ import {
 const BEST_KEY = 'naiwa-best';
 const KEY_KEY = 'naiwa-keys';
 const COIN_KEY = 'naiwa-coins';
+const HERO_KEY = 'naiwa-hero';
 const JET_KEY = 'naiwa-jets';
 
 function readBest() {
@@ -81,6 +82,23 @@ function writeCoins(count) {
     localStorage.setItem(COIN_KEY, String(Math.max(0, Math.floor(count))));
   } catch (error) {
     console.warn('naiwa.coins', error);
+  }
+}
+
+function readHero() {
+  try {
+    return localStorage.getItem(HERO_KEY) === 'dudu' ? 'dudu' : 'frog';
+  } catch (error) {
+    console.warn('naiwa.hero', error);
+    return 'frog';
+  }
+}
+
+function writeHero(id) {
+  try {
+    localStorage.setItem(HERO_KEY, id === 'dudu' ? 'dudu' : 'frog');
+  } catch (error) {
+    console.warn('naiwa.hero', error);
   }
 }
 
@@ -734,21 +752,43 @@ export function createGame(canvas, hooks) {
   let playerRig = null;
   let chaserRig = null;
   let modelReady = false;
+  let heroId = readHero();
+  let frogSource = null;
+  let duduSource = null;
   const loader = new GLTFLoader();
   loader.load(
     'assets/frog.glb',
-    (gltf) => mountFrogs(gltf.scene),
+    (gltf) => {
+      frogSource = gltf.scene;
+      mountFrogs(heroSource());
+    },
     undefined,
     (error) => {
       console.warn('naiwa.model', error);
-      mountFrogs(fallbackFrog());
+      frogSource = fallbackFrog();
+      mountFrogs(heroSource());
     },
   );
+  loader.load(
+    'assets/dudu.glb',
+    (gltf) => {
+      duduSource = gltf.scene;
+      if (heroId === 'dudu' && modelReady) mountFrogs(heroSource());
+    },
+    undefined,
+    (error) => console.warn('naiwa.dudu', error),
+  );
+
+  function heroSource() {
+    if (heroId === 'dudu' && duduSource) return duduSource;
+    return frogSource || fallbackFrog();
+  }
 
   function mountFrogs(source) {
     player.clear();
     chaser.clear();
     const mesh = firstMesh(source);
+    const chaserMesh = firstMesh(frogSource || source);
     if (!mesh) {
       player.add(source);
       modelReady = true;
@@ -756,8 +796,8 @@ export function createGame(canvas, hooks) {
       return;
     }
     playerRig = makePosable(mesh);
-    chaserRig = makePosable(mesh);
-    const heroBox = fitWidth(playerRig.root, 1.5);
+    chaserRig = makePosable(chaserMesh || mesh);
+    fitWidth(playerRig.root, 1.5);
     const villainBox = fitWidth(chaserRig.root, 1.78);
     player.add(playerRig.root);
     chaser.add(chaserRig.root);
@@ -767,8 +807,9 @@ export function createGame(canvas, hooks) {
     bottle.position.set(0.55, villainBox.max.y * 0.5, -0.28);
     chaser.add(hat, bottle);
     playerMats = [playerRig.material];
+    const first = !modelReady;
     modelReady = true;
-    hooks.onReady();
+    if (first) hooks.onReady();
   }
 
   const pools = new Map();
@@ -982,6 +1023,11 @@ export function createGame(canvas, hooks) {
   }
 
   function faceCamera(x, z) {
+    if (heroId === 'dudu') {
+      camera.position.set(x, 1.45, z - 4.4);
+      camera.lookAt(x, 0.78, z);
+      return;
+    }
     camera.position.set(x, 1.2, z - 2.7);
     camera.lookAt(x, 1.02, z);
   }
@@ -1436,8 +1482,7 @@ export function createGame(canvas, hooks) {
         player.position.set(0, breathe * 0.015, 0);
         poseRig(playerRig, { legL: 0, legR: 0, armL: 0.05, armR: 0.05, head: breathe * 0.04, armZL: 0.1, armZR: -0.1 });
       }
-      camera.position.set(0, 1.2, -2.7);
-      camera.lookAt(0, 1.02, 0);
+      faceCamera(0, 0);
       paintTrack();
       shadow.position.set(0, 0.04, 0);
       renderer.render(scene, camera);
@@ -1520,6 +1565,15 @@ export function createGame(canvas, hooks) {
   loop();
 
   return {
+    hero() {
+      return heroId;
+    },
+    setHero(id) {
+      heroId = id === 'dudu' ? 'dudu' : 'frog';
+      writeHero(heroId);
+      if (modelReady && (run.phase === 'title' || run.phase === 'over')) mountFrogs(heroSource());
+      return heroId;
+    },
     playLaugh(duration) {
       laughDur = Number.isFinite(duration) && duration > 0.5 ? duration : 6.1;
       laughT = 0;

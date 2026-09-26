@@ -37,9 +37,9 @@ test('无伤每 50 米加 5%', () => {
 });
 
 test('开局更快，障碍更密', () => {
-  assert.equal(baseSpeed(0), 14.5);
+  assert.equal(baseSpeed(0), 18);
   assert.ok(baseSpeed(80) > baseSpeed(0));
-  assert.ok(minSpacing(baseSpeed(0), 0) < 12);
+  assert.ok(minSpacing(baseSpeed(0), 0) < 16);
 });
 
 test('跳跃能过高栏，第一次撞箱子只绊倒', () => {
@@ -79,5 +79,5 @@ test('200 金币换一把钥匙，便便和蘑菇不再老是抽到', () => {
   assert.ok(rare <= 8, `expected rare items seldom, got ${rare}`);
   assert.equal(itemDuration('shroom'), 6);
   const sung = coverDistance(108, 3.75) - 108;
-  assert.ok(sung > 50 && sung < 70, `white bowl gap ${sung}`);
+  assert.ok(sung > 65 && sung < 85, `white bowl gap ${sung}`);
 });

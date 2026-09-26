@@ -861,17 +861,17 @@ var Matrix3 = class _Matrix3 {
     return this;
   }
   transpose() {
-    let tmp2;
+    let tmp;
     const m = this.elements;
-    tmp2 = m[1];
+    tmp = m[1];
     m[1] = m[3];
-    m[3] = tmp2;
-    tmp2 = m[2];
+    m[3] = tmp;
+    tmp = m[2];
     m[2] = m[6];
-    m[6] = tmp2;
-    tmp2 = m[5];
+    m[6] = tmp;
+    tmp = m[5];
     m[5] = m[7];
-    m[7] = tmp2;
+    m[7] = tmp;
     return this;
   }
   getNormalMatrix(matrix4) {
@@ -3831,25 +3831,25 @@ var Matrix4 = class _Matrix4 {
   }
   transpose() {
     const te = this.elements;
-    let tmp2;
-    tmp2 = te[1];
+    let tmp;
+    tmp = te[1];
     te[1] = te[4];
-    te[4] = tmp2;
-    tmp2 = te[2];
+    te[4] = tmp;
+    tmp = te[2];
     te[2] = te[8];
-    te[8] = tmp2;
-    tmp2 = te[6];
+    te[8] = tmp;
+    tmp = te[6];
     te[6] = te[9];
-    te[9] = tmp2;
-    tmp2 = te[3];
+    te[9] = tmp;
+    tmp = te[3];
     te[3] = te[12];
-    te[12] = tmp2;
-    tmp2 = te[7];
+    te[12] = tmp;
+    tmp = te[7];
     te[7] = te[13];
-    te[13] = tmp2;
-    tmp2 = te[11];
+    te[13] = tmp;
+    tmp = te[11];
     te[11] = te[14];
-    te[14] = tmp2;
+    te[14] = tmp;
     return this;
   }
   setPosition(x, y, z) {
@@ -6616,18 +6616,18 @@ var BufferGeometry = class _BufferGeometry extends EventDispatcher {
         );
       }
     }
-    const tmp2 = new Vector3(), tmp22 = new Vector3();
+    const tmp = new Vector3(), tmp2 = new Vector3();
     const n = new Vector3(), n2 = new Vector3();
     function handleVertex(v) {
       n.fromBufferAttribute(normalAttribute, v);
       n2.copy(n);
       const t = tan1[v];
-      tmp2.copy(t);
-      tmp2.sub(n.multiplyScalar(n.dot(t))).normalize();
-      tmp22.crossVectors(n2, t);
-      const test = tmp22.dot(tan2[v]);
+      tmp.copy(t);
+      tmp.sub(n.multiplyScalar(n.dot(t))).normalize();
+      tmp2.crossVectors(n2, t);
+      const test = tmp2.dot(tan2[v]);
       const w = test < 0 ? -1 : 1;
-      tangentAttribute.setXYZW(v, tmp2.x, tmp2.y, tmp2.z, w);
+      tangentAttribute.setXYZW(v, tmp.x, tmp.y, tmp.z, w);
     }
     for (let i = 0, il = groups.length; i < il; ++i) {
       const group = groups[i];
@@ -7202,9 +7202,9 @@ function cloneUniforms(src) {
 function mergeUniforms(uniforms) {
   const merged = {};
   for (let u = 0; u < uniforms.length; u++) {
-    const tmp2 = cloneUniforms(uniforms[u]);
-    for (const p in tmp2) {
-      merged[p] = tmp2[p];
+    const tmp = cloneUniforms(uniforms[u]);
+    for (const p in tmp) {
+      merged[p] = tmp[p];
     }
   }
   return merged;
@@ -19460,1142 +19460,6 @@ var CanvasTexture = class extends Texture {
     this.needsUpdate = true;
   }
 };
-var Curve = class {
-  constructor() {
-    this.type = "Curve";
-    this.arcLengthDivisions = 200;
-  }
-  // Virtual base class method to overwrite and implement in subclasses
-  //	- t [0 .. 1]
-  getPoint() {
-    console.warn("THREE.Curve: .getPoint() not implemented.");
-    return null;
-  }
-  // Get point at relative position in curve according to arc length
-  // - u [0 .. 1]
-  getPointAt(u, optionalTarget) {
-    const t = this.getUtoTmapping(u);
-    return this.getPoint(t, optionalTarget);
-  }
-  // Get sequence of points using getPoint( t )
-  getPoints(divisions = 5) {
-    const points = [];
-    for (let d = 0; d <= divisions; d++) {
-      points.push(this.getPoint(d / divisions));
-    }
-    return points;
-  }
-  // Get sequence of points using getPointAt( u )
-  getSpacedPoints(divisions = 5) {
-    const points = [];
-    for (let d = 0; d <= divisions; d++) {
-      points.push(this.getPointAt(d / divisions));
-    }
-    return points;
-  }
-  // Get total curve arc length
-  getLength() {
-    const lengths = this.getLengths();
-    return lengths[lengths.length - 1];
-  }
-  // Get list of cumulative segment lengths
-  getLengths(divisions = this.arcLengthDivisions) {
-    if (this.cacheArcLengths && this.cacheArcLengths.length === divisions + 1 && !this.needsUpdate) {
-      return this.cacheArcLengths;
-    }
-    this.needsUpdate = false;
-    const cache = [];
-    let current, last = this.getPoint(0);
-    let sum = 0;
-    cache.push(0);
-    for (let p = 1; p <= divisions; p++) {
-      current = this.getPoint(p / divisions);
-      sum += current.distanceTo(last);
-      cache.push(sum);
-      last = current;
-    }
-    this.cacheArcLengths = cache;
-    return cache;
-  }
-  updateArcLengths() {
-    this.needsUpdate = true;
-    this.getLengths();
-  }
-  // Given u ( 0 .. 1 ), get a t to find p. This gives you points which are equidistant
-  getUtoTmapping(u, distance) {
-    const arcLengths = this.getLengths();
-    let i = 0;
-    const il = arcLengths.length;
-    let targetArcLength;
-    if (distance) {
-      targetArcLength = distance;
-    } else {
-      targetArcLength = u * arcLengths[il - 1];
-    }
-    let low = 0, high = il - 1, comparison;
-    while (low <= high) {
-      i = Math.floor(low + (high - low) / 2);
-      comparison = arcLengths[i] - targetArcLength;
-      if (comparison < 0) {
-        low = i + 1;
-      } else if (comparison > 0) {
-        high = i - 1;
-      } else {
-        high = i;
-        break;
-      }
-    }
-    i = high;
-    if (arcLengths[i] === targetArcLength) {
-      return i / (il - 1);
-    }
-    const lengthBefore = arcLengths[i];
-    const lengthAfter = arcLengths[i + 1];
-    const segmentLength = lengthAfter - lengthBefore;
-    const segmentFraction = (targetArcLength - lengthBefore) / segmentLength;
-    const t = (i + segmentFraction) / (il - 1);
-    return t;
-  }
-  // Returns a unit vector tangent at t
-  // In case any sub curve does not implement its tangent derivation,
-  // 2 points a small delta apart will be used to find its gradient
-  // which seems to give a reasonable approximation
-  getTangent(t, optionalTarget) {
-    const delta = 1e-4;
-    let t1 = t - delta;
-    let t2 = t + delta;
-    if (t1 < 0) t1 = 0;
-    if (t2 > 1) t2 = 1;
-    const pt1 = this.getPoint(t1);
-    const pt2 = this.getPoint(t2);
-    const tangent = optionalTarget || (pt1.isVector2 ? new Vector2() : new Vector3());
-    tangent.copy(pt2).sub(pt1).normalize();
-    return tangent;
-  }
-  getTangentAt(u, optionalTarget) {
-    const t = this.getUtoTmapping(u);
-    return this.getTangent(t, optionalTarget);
-  }
-  computeFrenetFrames(segments, closed) {
-    const normal = new Vector3();
-    const tangents = [];
-    const normals = [];
-    const binormals = [];
-    const vec = new Vector3();
-    const mat2 = new Matrix4();
-    for (let i = 0; i <= segments; i++) {
-      const u = i / segments;
-      tangents[i] = this.getTangentAt(u, new Vector3());
-    }
-    normals[0] = new Vector3();
-    binormals[0] = new Vector3();
-    let min = Number.MAX_VALUE;
-    const tx = Math.abs(tangents[0].x);
-    const ty = Math.abs(tangents[0].y);
-    const tz = Math.abs(tangents[0].z);
-    if (tx <= min) {
-      min = tx;
-      normal.set(1, 0, 0);
-    }
-    if (ty <= min) {
-      min = ty;
-      normal.set(0, 1, 0);
-    }
-    if (tz <= min) {
-      normal.set(0, 0, 1);
-    }
-    vec.crossVectors(tangents[0], normal).normalize();
-    normals[0].crossVectors(tangents[0], vec);
-    binormals[0].crossVectors(tangents[0], normals[0]);
-    for (let i = 1; i <= segments; i++) {
-      normals[i] = normals[i - 1].clone();
-      binormals[i] = binormals[i - 1].clone();
-      vec.crossVectors(tangents[i - 1], tangents[i]);
-      if (vec.length() > Number.EPSILON) {
-        vec.normalize();
-        const theta = Math.acos(clamp(tangents[i - 1].dot(tangents[i]), -1, 1));
-        normals[i].applyMatrix4(mat2.makeRotationAxis(vec, theta));
-      }
-      binormals[i].crossVectors(tangents[i], normals[i]);
-    }
-    if (closed === true) {
-      let theta = Math.acos(clamp(normals[0].dot(normals[segments]), -1, 1));
-      theta /= segments;
-      if (tangents[0].dot(vec.crossVectors(normals[0], normals[segments])) > 0) {
-        theta = -theta;
-      }
-      for (let i = 1; i <= segments; i++) {
-        normals[i].applyMatrix4(mat2.makeRotationAxis(tangents[i], theta * i));
-        binormals[i].crossVectors(tangents[i], normals[i]);
-      }
-    }
-    return {
-      tangents,
-      normals,
-      binormals
-    };
-  }
-  clone() {
-    return new this.constructor().copy(this);
-  }
-  copy(source) {
-    this.arcLengthDivisions = source.arcLengthDivisions;
-    return this;
-  }
-  toJSON() {
-    const data = {
-      metadata: {
-        version: 4.6,
-        type: "Curve",
-        generator: "Curve.toJSON"
-      }
-    };
-    data.arcLengthDivisions = this.arcLengthDivisions;
-    data.type = this.type;
-    return data;
-  }
-  fromJSON(json) {
-    this.arcLengthDivisions = json.arcLengthDivisions;
-    return this;
-  }
-};
-var EllipseCurve = class extends Curve {
-  constructor(aX = 0, aY = 0, xRadius = 1, yRadius = 1, aStartAngle = 0, aEndAngle = Math.PI * 2, aClockwise = false, aRotation = 0) {
-    super();
-    this.isEllipseCurve = true;
-    this.type = "EllipseCurve";
-    this.aX = aX;
-    this.aY = aY;
-    this.xRadius = xRadius;
-    this.yRadius = yRadius;
-    this.aStartAngle = aStartAngle;
-    this.aEndAngle = aEndAngle;
-    this.aClockwise = aClockwise;
-    this.aRotation = aRotation;
-  }
-  getPoint(t, optionalTarget = new Vector2()) {
-    const point = optionalTarget;
-    const twoPi = Math.PI * 2;
-    let deltaAngle = this.aEndAngle - this.aStartAngle;
-    const samePoints = Math.abs(deltaAngle) < Number.EPSILON;
-    while (deltaAngle < 0) deltaAngle += twoPi;
-    while (deltaAngle > twoPi) deltaAngle -= twoPi;
-    if (deltaAngle < Number.EPSILON) {
-      if (samePoints) {
-        deltaAngle = 0;
-      } else {
-        deltaAngle = twoPi;
-      }
-    }
-    if (this.aClockwise === true && !samePoints) {
-      if (deltaAngle === twoPi) {
-        deltaAngle = -twoPi;
-      } else {
-        deltaAngle = deltaAngle - twoPi;
-      }
-    }
-    const angle = this.aStartAngle + t * deltaAngle;
-    let x = this.aX + this.xRadius * Math.cos(angle);
-    let y = this.aY + this.yRadius * Math.sin(angle);
-    if (this.aRotation !== 0) {
-      const cos = Math.cos(this.aRotation);
-      const sin = Math.sin(this.aRotation);
-      const tx = x - this.aX;
-      const ty = y - this.aY;
-      x = tx * cos - ty * sin + this.aX;
-      y = tx * sin + ty * cos + this.aY;
-    }
-    return point.set(x, y);
-  }
-  copy(source) {
-    super.copy(source);
-    this.aX = source.aX;
-    this.aY = source.aY;
-    this.xRadius = source.xRadius;
-    this.yRadius = source.yRadius;
-    this.aStartAngle = source.aStartAngle;
-    this.aEndAngle = source.aEndAngle;
-    this.aClockwise = source.aClockwise;
-    this.aRotation = source.aRotation;
-    return this;
-  }
-  toJSON() {
-    const data = super.toJSON();
-    data.aX = this.aX;
-    data.aY = this.aY;
-    data.xRadius = this.xRadius;
-    data.yRadius = this.yRadius;
-    data.aStartAngle = this.aStartAngle;
-    data.aEndAngle = this.aEndAngle;
-    data.aClockwise = this.aClockwise;
-    data.aRotation = this.aRotation;
-    return data;
-  }
-  fromJSON(json) {
-    super.fromJSON(json);
-    this.aX = json.aX;
-    this.aY = json.aY;
-    this.xRadius = json.xRadius;
-    this.yRadius = json.yRadius;
-    this.aStartAngle = json.aStartAngle;
-    this.aEndAngle = json.aEndAngle;
-    this.aClockwise = json.aClockwise;
-    this.aRotation = json.aRotation;
-    return this;
-  }
-};
-var ArcCurve = class extends EllipseCurve {
-  constructor(aX, aY, aRadius, aStartAngle, aEndAngle, aClockwise) {
-    super(aX, aY, aRadius, aRadius, aStartAngle, aEndAngle, aClockwise);
-    this.isArcCurve = true;
-    this.type = "ArcCurve";
-  }
-};
-function CubicPoly() {
-  let c0 = 0, c1 = 0, c2 = 0, c3 = 0;
-  function init(x0, x1, t0, t1) {
-    c0 = x0;
-    c1 = t0;
-    c2 = -3 * x0 + 3 * x1 - 2 * t0 - t1;
-    c3 = 2 * x0 - 2 * x1 + t0 + t1;
-  }
-  return {
-    initCatmullRom: function(x0, x1, x2, x3, tension) {
-      init(x1, x2, tension * (x2 - x0), tension * (x3 - x1));
-    },
-    initNonuniformCatmullRom: function(x0, x1, x2, x3, dt0, dt1, dt2) {
-      let t1 = (x1 - x0) / dt0 - (x2 - x0) / (dt0 + dt1) + (x2 - x1) / dt1;
-      let t2 = (x2 - x1) / dt1 - (x3 - x1) / (dt1 + dt2) + (x3 - x2) / dt2;
-      t1 *= dt1;
-      t2 *= dt1;
-      init(x1, x2, t1, t2);
-    },
-    calc: function(t) {
-      const t2 = t * t;
-      const t3 = t2 * t;
-      return c0 + c1 * t + c2 * t2 + c3 * t3;
-    }
-  };
-}
-var tmp = /* @__PURE__ */ new Vector3();
-var px = /* @__PURE__ */ new CubicPoly();
-var py = /* @__PURE__ */ new CubicPoly();
-var pz = /* @__PURE__ */ new CubicPoly();
-var CatmullRomCurve3 = class extends Curve {
-  constructor(points = [], closed = false, curveType = "centripetal", tension = 0.5) {
-    super();
-    this.isCatmullRomCurve3 = true;
-    this.type = "CatmullRomCurve3";
-    this.points = points;
-    this.closed = closed;
-    this.curveType = curveType;
-    this.tension = tension;
-  }
-  getPoint(t, optionalTarget = new Vector3()) {
-    const point = optionalTarget;
-    const points = this.points;
-    const l = points.length;
-    const p = (l - (this.closed ? 0 : 1)) * t;
-    let intPoint = Math.floor(p);
-    let weight = p - intPoint;
-    if (this.closed) {
-      intPoint += intPoint > 0 ? 0 : (Math.floor(Math.abs(intPoint) / l) + 1) * l;
-    } else if (weight === 0 && intPoint === l - 1) {
-      intPoint = l - 2;
-      weight = 1;
-    }
-    let p0, p3;
-    if (this.closed || intPoint > 0) {
-      p0 = points[(intPoint - 1) % l];
-    } else {
-      tmp.subVectors(points[0], points[1]).add(points[0]);
-      p0 = tmp;
-    }
-    const p1 = points[intPoint % l];
-    const p2 = points[(intPoint + 1) % l];
-    if (this.closed || intPoint + 2 < l) {
-      p3 = points[(intPoint + 2) % l];
-    } else {
-      tmp.subVectors(points[l - 1], points[l - 2]).add(points[l - 1]);
-      p3 = tmp;
-    }
-    if (this.curveType === "centripetal" || this.curveType === "chordal") {
-      const pow = this.curveType === "chordal" ? 0.5 : 0.25;
-      let dt0 = Math.pow(p0.distanceToSquared(p1), pow);
-      let dt1 = Math.pow(p1.distanceToSquared(p2), pow);
-      let dt2 = Math.pow(p2.distanceToSquared(p3), pow);
-      if (dt1 < 1e-4) dt1 = 1;
-      if (dt0 < 1e-4) dt0 = dt1;
-      if (dt2 < 1e-4) dt2 = dt1;
-      px.initNonuniformCatmullRom(p0.x, p1.x, p2.x, p3.x, dt0, dt1, dt2);
-      py.initNonuniformCatmullRom(p0.y, p1.y, p2.y, p3.y, dt0, dt1, dt2);
-      pz.initNonuniformCatmullRom(p0.z, p1.z, p2.z, p3.z, dt0, dt1, dt2);
-    } else if (this.curveType === "catmullrom") {
-      px.initCatmullRom(p0.x, p1.x, p2.x, p3.x, this.tension);
-      py.initCatmullRom(p0.y, p1.y, p2.y, p3.y, this.tension);
-      pz.initCatmullRom(p0.z, p1.z, p2.z, p3.z, this.tension);
-    }
-    point.set(
-      px.calc(weight),
-      py.calc(weight),
-      pz.calc(weight)
-    );
-    return point;
-  }
-  copy(source) {
-    super.copy(source);
-    this.points = [];
-    for (let i = 0, l = source.points.length; i < l; i++) {
-      const point = source.points[i];
-      this.points.push(point.clone());
-    }
-    this.closed = source.closed;
-    this.curveType = source.curveType;
-    this.tension = source.tension;
-    return this;
-  }
-  toJSON() {
-    const data = super.toJSON();
-    data.points = [];
-    for (let i = 0, l = this.points.length; i < l; i++) {
-      const point = this.points[i];
-      data.points.push(point.toArray());
-    }
-    data.closed = this.closed;
-    data.curveType = this.curveType;
-    data.tension = this.tension;
-    return data;
-  }
-  fromJSON(json) {
-    super.fromJSON(json);
-    this.points = [];
-    for (let i = 0, l = json.points.length; i < l; i++) {
-      const point = json.points[i];
-      this.points.push(new Vector3().fromArray(point));
-    }
-    this.closed = json.closed;
-    this.curveType = json.curveType;
-    this.tension = json.tension;
-    return this;
-  }
-};
-function CatmullRom(t, p0, p1, p2, p3) {
-  const v0 = (p2 - p0) * 0.5;
-  const v1 = (p3 - p1) * 0.5;
-  const t2 = t * t;
-  const t3 = t * t2;
-  return (2 * p1 - 2 * p2 + v0 + v1) * t3 + (-3 * p1 + 3 * p2 - 2 * v0 - v1) * t2 + v0 * t + p1;
-}
-function QuadraticBezierP0(t, p) {
-  const k = 1 - t;
-  return k * k * p;
-}
-function QuadraticBezierP1(t, p) {
-  return 2 * (1 - t) * t * p;
-}
-function QuadraticBezierP2(t, p) {
-  return t * t * p;
-}
-function QuadraticBezier(t, p0, p1, p2) {
-  return QuadraticBezierP0(t, p0) + QuadraticBezierP1(t, p1) + QuadraticBezierP2(t, p2);
-}
-function CubicBezierP0(t, p) {
-  const k = 1 - t;
-  return k * k * k * p;
-}
-function CubicBezierP1(t, p) {
-  const k = 1 - t;
-  return 3 * k * k * t * p;
-}
-function CubicBezierP2(t, p) {
-  return 3 * (1 - t) * t * t * p;
-}
-function CubicBezierP3(t, p) {
-  return t * t * t * p;
-}
-function CubicBezier(t, p0, p1, p2, p3) {
-  return CubicBezierP0(t, p0) + CubicBezierP1(t, p1) + CubicBezierP2(t, p2) + CubicBezierP3(t, p3);
-}
-var CubicBezierCurve = class extends Curve {
-  constructor(v0 = new Vector2(), v1 = new Vector2(), v2 = new Vector2(), v3 = new Vector2()) {
-    super();
-    this.isCubicBezierCurve = true;
-    this.type = "CubicBezierCurve";
-    this.v0 = v0;
-    this.v1 = v1;
-    this.v2 = v2;
-    this.v3 = v3;
-  }
-  getPoint(t, optionalTarget = new Vector2()) {
-    const point = optionalTarget;
-    const v0 = this.v0, v1 = this.v1, v2 = this.v2, v3 = this.v3;
-    point.set(
-      CubicBezier(t, v0.x, v1.x, v2.x, v3.x),
-      CubicBezier(t, v0.y, v1.y, v2.y, v3.y)
-    );
-    return point;
-  }
-  copy(source) {
-    super.copy(source);
-    this.v0.copy(source.v0);
-    this.v1.copy(source.v1);
-    this.v2.copy(source.v2);
-    this.v3.copy(source.v3);
-    return this;
-  }
-  toJSON() {
-    const data = super.toJSON();
-    data.v0 = this.v0.toArray();
-    data.v1 = this.v1.toArray();
-    data.v2 = this.v2.toArray();
-    data.v3 = this.v3.toArray();
-    return data;
-  }
-  fromJSON(json) {
-    super.fromJSON(json);
-    this.v0.fromArray(json.v0);
-    this.v1.fromArray(json.v1);
-    this.v2.fromArray(json.v2);
-    this.v3.fromArray(json.v3);
-    return this;
-  }
-};
-var CubicBezierCurve3 = class extends Curve {
-  constructor(v0 = new Vector3(), v1 = new Vector3(), v2 = new Vector3(), v3 = new Vector3()) {
-    super();
-    this.isCubicBezierCurve3 = true;
-    this.type = "CubicBezierCurve3";
-    this.v0 = v0;
-    this.v1 = v1;
-    this.v2 = v2;
-    this.v3 = v3;
-  }
-  getPoint(t, optionalTarget = new Vector3()) {
-    const point = optionalTarget;
-    const v0 = this.v0, v1 = this.v1, v2 = this.v2, v3 = this.v3;
-    point.set(
-      CubicBezier(t, v0.x, v1.x, v2.x, v3.x),
-      CubicBezier(t, v0.y, v1.y, v2.y, v3.y),
-      CubicBezier(t, v0.z, v1.z, v2.z, v3.z)
-    );
-    return point;
-  }
-  copy(source) {
-    super.copy(source);
-    this.v0.copy(source.v0);
-    this.v1.copy(source.v1);
-    this.v2.copy(source.v2);
-    this.v3.copy(source.v3);
-    return this;
-  }
-  toJSON() {
-    const data = super.toJSON();
-    data.v0 = this.v0.toArray();
-    data.v1 = this.v1.toArray();
-    data.v2 = this.v2.toArray();
-    data.v3 = this.v3.toArray();
-    return data;
-  }
-  fromJSON(json) {
-    super.fromJSON(json);
-    this.v0.fromArray(json.v0);
-    this.v1.fromArray(json.v1);
-    this.v2.fromArray(json.v2);
-    this.v3.fromArray(json.v3);
-    return this;
-  }
-};
-var LineCurve = class extends Curve {
-  constructor(v1 = new Vector2(), v2 = new Vector2()) {
-    super();
-    this.isLineCurve = true;
-    this.type = "LineCurve";
-    this.v1 = v1;
-    this.v2 = v2;
-  }
-  getPoint(t, optionalTarget = new Vector2()) {
-    const point = optionalTarget;
-    if (t === 1) {
-      point.copy(this.v2);
-    } else {
-      point.copy(this.v2).sub(this.v1);
-      point.multiplyScalar(t).add(this.v1);
-    }
-    return point;
-  }
-  // Line curve is linear, so we can overwrite default getPointAt
-  getPointAt(u, optionalTarget) {
-    return this.getPoint(u, optionalTarget);
-  }
-  getTangent(t, optionalTarget = new Vector2()) {
-    return optionalTarget.subVectors(this.v2, this.v1).normalize();
-  }
-  getTangentAt(u, optionalTarget) {
-    return this.getTangent(u, optionalTarget);
-  }
-  copy(source) {
-    super.copy(source);
-    this.v1.copy(source.v1);
-    this.v2.copy(source.v2);
-    return this;
-  }
-  toJSON() {
-    const data = super.toJSON();
-    data.v1 = this.v1.toArray();
-    data.v2 = this.v2.toArray();
-    return data;
-  }
-  fromJSON(json) {
-    super.fromJSON(json);
-    this.v1.fromArray(json.v1);
-    this.v2.fromArray(json.v2);
-    return this;
-  }
-};
-var LineCurve3 = class extends Curve {
-  constructor(v1 = new Vector3(), v2 = new Vector3()) {
-    super();
-    this.isLineCurve3 = true;
-    this.type = "LineCurve3";
-    this.v1 = v1;
-    this.v2 = v2;
-  }
-  getPoint(t, optionalTarget = new Vector3()) {
-    const point = optionalTarget;
-    if (t === 1) {
-      point.copy(this.v2);
-    } else {
-      point.copy(this.v2).sub(this.v1);
-      point.multiplyScalar(t).add(this.v1);
-    }
-    return point;
-  }
-  // Line curve is linear, so we can overwrite default getPointAt
-  getPointAt(u, optionalTarget) {
-    return this.getPoint(u, optionalTarget);
-  }
-  getTangent(t, optionalTarget = new Vector3()) {
-    return optionalTarget.subVectors(this.v2, this.v1).normalize();
-  }
-  getTangentAt(u, optionalTarget) {
-    return this.getTangent(u, optionalTarget);
-  }
-  copy(source) {
-    super.copy(source);
-    this.v1.copy(source.v1);
-    this.v2.copy(source.v2);
-    return this;
-  }
-  toJSON() {
-    const data = super.toJSON();
-    data.v1 = this.v1.toArray();
-    data.v2 = this.v2.toArray();
-    return data;
-  }
-  fromJSON(json) {
-    super.fromJSON(json);
-    this.v1.fromArray(json.v1);
-    this.v2.fromArray(json.v2);
-    return this;
-  }
-};
-var QuadraticBezierCurve = class extends Curve {
-  constructor(v0 = new Vector2(), v1 = new Vector2(), v2 = new Vector2()) {
-    super();
-    this.isQuadraticBezierCurve = true;
-    this.type = "QuadraticBezierCurve";
-    this.v0 = v0;
-    this.v1 = v1;
-    this.v2 = v2;
-  }
-  getPoint(t, optionalTarget = new Vector2()) {
-    const point = optionalTarget;
-    const v0 = this.v0, v1 = this.v1, v2 = this.v2;
-    point.set(
-      QuadraticBezier(t, v0.x, v1.x, v2.x),
-      QuadraticBezier(t, v0.y, v1.y, v2.y)
-    );
-    return point;
-  }
-  copy(source) {
-    super.copy(source);
-    this.v0.copy(source.v0);
-    this.v1.copy(source.v1);
-    this.v2.copy(source.v2);
-    return this;
-  }
-  toJSON() {
-    const data = super.toJSON();
-    data.v0 = this.v0.toArray();
-    data.v1 = this.v1.toArray();
-    data.v2 = this.v2.toArray();
-    return data;
-  }
-  fromJSON(json) {
-    super.fromJSON(json);
-    this.v0.fromArray(json.v0);
-    this.v1.fromArray(json.v1);
-    this.v2.fromArray(json.v2);
-    return this;
-  }
-};
-var QuadraticBezierCurve3 = class extends Curve {
-  constructor(v0 = new Vector3(), v1 = new Vector3(), v2 = new Vector3()) {
-    super();
-    this.isQuadraticBezierCurve3 = true;
-    this.type = "QuadraticBezierCurve3";
-    this.v0 = v0;
-    this.v1 = v1;
-    this.v2 = v2;
-  }
-  getPoint(t, optionalTarget = new Vector3()) {
-    const point = optionalTarget;
-    const v0 = this.v0, v1 = this.v1, v2 = this.v2;
-    point.set(
-      QuadraticBezier(t, v0.x, v1.x, v2.x),
-      QuadraticBezier(t, v0.y, v1.y, v2.y),
-      QuadraticBezier(t, v0.z, v1.z, v2.z)
-    );
-    return point;
-  }
-  copy(source) {
-    super.copy(source);
-    this.v0.copy(source.v0);
-    this.v1.copy(source.v1);
-    this.v2.copy(source.v2);
-    return this;
-  }
-  toJSON() {
-    const data = super.toJSON();
-    data.v0 = this.v0.toArray();
-    data.v1 = this.v1.toArray();
-    data.v2 = this.v2.toArray();
-    return data;
-  }
-  fromJSON(json) {
-    super.fromJSON(json);
-    this.v0.fromArray(json.v0);
-    this.v1.fromArray(json.v1);
-    this.v2.fromArray(json.v2);
-    return this;
-  }
-};
-var SplineCurve = class extends Curve {
-  constructor(points = []) {
-    super();
-    this.isSplineCurve = true;
-    this.type = "SplineCurve";
-    this.points = points;
-  }
-  getPoint(t, optionalTarget = new Vector2()) {
-    const point = optionalTarget;
-    const points = this.points;
-    const p = (points.length - 1) * t;
-    const intPoint = Math.floor(p);
-    const weight = p - intPoint;
-    const p0 = points[intPoint === 0 ? intPoint : intPoint - 1];
-    const p1 = points[intPoint];
-    const p2 = points[intPoint > points.length - 2 ? points.length - 1 : intPoint + 1];
-    const p3 = points[intPoint > points.length - 3 ? points.length - 1 : intPoint + 2];
-    point.set(
-      CatmullRom(weight, p0.x, p1.x, p2.x, p3.x),
-      CatmullRom(weight, p0.y, p1.y, p2.y, p3.y)
-    );
-    return point;
-  }
-  copy(source) {
-    super.copy(source);
-    this.points = [];
-    for (let i = 0, l = source.points.length; i < l; i++) {
-      const point = source.points[i];
-      this.points.push(point.clone());
-    }
-    return this;
-  }
-  toJSON() {
-    const data = super.toJSON();
-    data.points = [];
-    for (let i = 0, l = this.points.length; i < l; i++) {
-      const point = this.points[i];
-      data.points.push(point.toArray());
-    }
-    return data;
-  }
-  fromJSON(json) {
-    super.fromJSON(json);
-    this.points = [];
-    for (let i = 0, l = json.points.length; i < l; i++) {
-      const point = json.points[i];
-      this.points.push(new Vector2().fromArray(point));
-    }
-    return this;
-  }
-};
-var Curves = /* @__PURE__ */ Object.freeze({
-  __proto__: null,
-  ArcCurve,
-  CatmullRomCurve3,
-  CubicBezierCurve,
-  CubicBezierCurve3,
-  EllipseCurve,
-  LineCurve,
-  LineCurve3,
-  QuadraticBezierCurve,
-  QuadraticBezierCurve3,
-  SplineCurve
-});
-var CurvePath = class extends Curve {
-  constructor() {
-    super();
-    this.type = "CurvePath";
-    this.curves = [];
-    this.autoClose = false;
-  }
-  add(curve) {
-    this.curves.push(curve);
-  }
-  closePath() {
-    const startPoint = this.curves[0].getPoint(0);
-    const endPoint = this.curves[this.curves.length - 1].getPoint(1);
-    if (!startPoint.equals(endPoint)) {
-      const lineType = startPoint.isVector2 === true ? "LineCurve" : "LineCurve3";
-      this.curves.push(new Curves[lineType](endPoint, startPoint));
-    }
-    return this;
-  }
-  // To get accurate point with reference to
-  // entire path distance at time t,
-  // following has to be done:
-  // 1. Length of each sub path have to be known
-  // 2. Locate and identify type of curve
-  // 3. Get t for the curve
-  // 4. Return curve.getPointAt(t')
-  getPoint(t, optionalTarget) {
-    const d = t * this.getLength();
-    const curveLengths = this.getCurveLengths();
-    let i = 0;
-    while (i < curveLengths.length) {
-      if (curveLengths[i] >= d) {
-        const diff = curveLengths[i] - d;
-        const curve = this.curves[i];
-        const segmentLength = curve.getLength();
-        const u = segmentLength === 0 ? 0 : 1 - diff / segmentLength;
-        return curve.getPointAt(u, optionalTarget);
-      }
-      i++;
-    }
-    return null;
-  }
-  // We cannot use the default THREE.Curve getPoint() with getLength() because in
-  // THREE.Curve, getLength() depends on getPoint() but in THREE.CurvePath
-  // getPoint() depends on getLength
-  getLength() {
-    const lens = this.getCurveLengths();
-    return lens[lens.length - 1];
-  }
-  // cacheLengths must be recalculated.
-  updateArcLengths() {
-    this.needsUpdate = true;
-    this.cacheLengths = null;
-    this.getCurveLengths();
-  }
-  // Compute lengths and cache them
-  // We cannot overwrite getLengths() because UtoT mapping uses it.
-  getCurveLengths() {
-    if (this.cacheLengths && this.cacheLengths.length === this.curves.length) {
-      return this.cacheLengths;
-    }
-    const lengths = [];
-    let sums = 0;
-    for (let i = 0, l = this.curves.length; i < l; i++) {
-      sums += this.curves[i].getLength();
-      lengths.push(sums);
-    }
-    this.cacheLengths = lengths;
-    return lengths;
-  }
-  getSpacedPoints(divisions = 40) {
-    const points = [];
-    for (let i = 0; i <= divisions; i++) {
-      points.push(this.getPoint(i / divisions));
-    }
-    if (this.autoClose) {
-      points.push(points[0]);
-    }
-    return points;
-  }
-  getPoints(divisions = 12) {
-    const points = [];
-    let last;
-    for (let i = 0, curves = this.curves; i < curves.length; i++) {
-      const curve = curves[i];
-      const resolution = curve.isEllipseCurve ? divisions * 2 : curve.isLineCurve || curve.isLineCurve3 ? 1 : curve.isSplineCurve ? divisions * curve.points.length : divisions;
-      const pts = curve.getPoints(resolution);
-      for (let j = 0; j < pts.length; j++) {
-        const point = pts[j];
-        if (last && last.equals(point)) continue;
-        points.push(point);
-        last = point;
-      }
-    }
-    if (this.autoClose && points.length > 1 && !points[points.length - 1].equals(points[0])) {
-      points.push(points[0]);
-    }
-    return points;
-  }
-  copy(source) {
-    super.copy(source);
-    this.curves = [];
-    for (let i = 0, l = source.curves.length; i < l; i++) {
-      const curve = source.curves[i];
-      this.curves.push(curve.clone());
-    }
-    this.autoClose = source.autoClose;
-    return this;
-  }
-  toJSON() {
-    const data = super.toJSON();
-    data.autoClose = this.autoClose;
-    data.curves = [];
-    for (let i = 0, l = this.curves.length; i < l; i++) {
-      const curve = this.curves[i];
-      data.curves.push(curve.toJSON());
-    }
-    return data;
-  }
-  fromJSON(json) {
-    super.fromJSON(json);
-    this.autoClose = json.autoClose;
-    this.curves = [];
-    for (let i = 0, l = json.curves.length; i < l; i++) {
-      const curve = json.curves[i];
-      this.curves.push(new Curves[curve.type]().fromJSON(curve));
-    }
-    return this;
-  }
-};
-var Path = class extends CurvePath {
-  constructor(points) {
-    super();
-    this.type = "Path";
-    this.currentPoint = new Vector2();
-    if (points) {
-      this.setFromPoints(points);
-    }
-  }
-  setFromPoints(points) {
-    this.moveTo(points[0].x, points[0].y);
-    for (let i = 1, l = points.length; i < l; i++) {
-      this.lineTo(points[i].x, points[i].y);
-    }
-    return this;
-  }
-  moveTo(x, y) {
-    this.currentPoint.set(x, y);
-    return this;
-  }
-  lineTo(x, y) {
-    const curve = new LineCurve(this.currentPoint.clone(), new Vector2(x, y));
-    this.curves.push(curve);
-    this.currentPoint.set(x, y);
-    return this;
-  }
-  quadraticCurveTo(aCPx, aCPy, aX, aY) {
-    const curve = new QuadraticBezierCurve(
-      this.currentPoint.clone(),
-      new Vector2(aCPx, aCPy),
-      new Vector2(aX, aY)
-    );
-    this.curves.push(curve);
-    this.currentPoint.set(aX, aY);
-    return this;
-  }
-  bezierCurveTo(aCP1x, aCP1y, aCP2x, aCP2y, aX, aY) {
-    const curve = new CubicBezierCurve(
-      this.currentPoint.clone(),
-      new Vector2(aCP1x, aCP1y),
-      new Vector2(aCP2x, aCP2y),
-      new Vector2(aX, aY)
-    );
-    this.curves.push(curve);
-    this.currentPoint.set(aX, aY);
-    return this;
-  }
-  splineThru(pts) {
-    const npts = [this.currentPoint.clone()].concat(pts);
-    const curve = new SplineCurve(npts);
-    this.curves.push(curve);
-    this.currentPoint.copy(pts[pts.length - 1]);
-    return this;
-  }
-  arc(aX, aY, aRadius, aStartAngle, aEndAngle, aClockwise) {
-    const x0 = this.currentPoint.x;
-    const y0 = this.currentPoint.y;
-    this.absarc(
-      aX + x0,
-      aY + y0,
-      aRadius,
-      aStartAngle,
-      aEndAngle,
-      aClockwise
-    );
-    return this;
-  }
-  absarc(aX, aY, aRadius, aStartAngle, aEndAngle, aClockwise) {
-    this.absellipse(aX, aY, aRadius, aRadius, aStartAngle, aEndAngle, aClockwise);
-    return this;
-  }
-  ellipse(aX, aY, xRadius, yRadius, aStartAngle, aEndAngle, aClockwise, aRotation) {
-    const x0 = this.currentPoint.x;
-    const y0 = this.currentPoint.y;
-    this.absellipse(aX + x0, aY + y0, xRadius, yRadius, aStartAngle, aEndAngle, aClockwise, aRotation);
-    return this;
-  }
-  absellipse(aX, aY, xRadius, yRadius, aStartAngle, aEndAngle, aClockwise, aRotation) {
-    const curve = new EllipseCurve(aX, aY, xRadius, yRadius, aStartAngle, aEndAngle, aClockwise, aRotation);
-    if (this.curves.length > 0) {
-      const firstPoint = curve.getPoint(0);
-      if (!firstPoint.equals(this.currentPoint)) {
-        this.lineTo(firstPoint.x, firstPoint.y);
-      }
-    }
-    this.curves.push(curve);
-    const lastPoint = curve.getPoint(1);
-    this.currentPoint.copy(lastPoint);
-    return this;
-  }
-  copy(source) {
-    super.copy(source);
-    this.currentPoint.copy(source.currentPoint);
-    return this;
-  }
-  toJSON() {
-    const data = super.toJSON();
-    data.currentPoint = this.currentPoint.toArray();
-    return data;
-  }
-  fromJSON(json) {
-    super.fromJSON(json);
-    this.currentPoint.fromArray(json.currentPoint);
-    return this;
-  }
-};
-var LatheGeometry = class _LatheGeometry extends BufferGeometry {
-  constructor(points = [new Vector2(0, -0.5), new Vector2(0.5, 0), new Vector2(0, 0.5)], segments = 12, phiStart = 0, phiLength = Math.PI * 2) {
-    super();
-    this.type = "LatheGeometry";
-    this.parameters = {
-      points,
-      segments,
-      phiStart,
-      phiLength
-    };
-    segments = Math.floor(segments);
-    phiLength = clamp(phiLength, 0, Math.PI * 2);
-    const indices = [];
-    const vertices = [];
-    const uvs = [];
-    const initNormals = [];
-    const normals = [];
-    const inverseSegments = 1 / segments;
-    const vertex2 = new Vector3();
-    const uv = new Vector2();
-    const normal = new Vector3();
-    const curNormal = new Vector3();
-    const prevNormal = new Vector3();
-    let dx = 0;
-    let dy = 0;
-    for (let j = 0; j <= points.length - 1; j++) {
-      switch (j) {
-        case 0:
-          dx = points[j + 1].x - points[j].x;
-          dy = points[j + 1].y - points[j].y;
-          normal.x = dy * 1;
-          normal.y = -dx;
-          normal.z = dy * 0;
-          prevNormal.copy(normal);
-          normal.normalize();
-          initNormals.push(normal.x, normal.y, normal.z);
-          break;
-        case points.length - 1:
-          initNormals.push(prevNormal.x, prevNormal.y, prevNormal.z);
-          break;
-        default:
-          dx = points[j + 1].x - points[j].x;
-          dy = points[j + 1].y - points[j].y;
-          normal.x = dy * 1;
-          normal.y = -dx;
-          normal.z = dy * 0;
-          curNormal.copy(normal);
-          normal.x += prevNormal.x;
-          normal.y += prevNormal.y;
-          normal.z += prevNormal.z;
-          normal.normalize();
-          initNormals.push(normal.x, normal.y, normal.z);
-          prevNormal.copy(curNormal);
-      }
-    }
-    for (let i = 0; i <= segments; i++) {
-      const phi = phiStart + i * inverseSegments * phiLength;
-      const sin = Math.sin(phi);
-      const cos = Math.cos(phi);
-      for (let j = 0; j <= points.length - 1; j++) {
-        vertex2.x = points[j].x * sin;
-        vertex2.y = points[j].y;
-        vertex2.z = points[j].x * cos;
-        vertices.push(vertex2.x, vertex2.y, vertex2.z);
-        uv.x = i / segments;
-        uv.y = j / (points.length - 1);
-        uvs.push(uv.x, uv.y);
-        const x = initNormals[3 * j + 0] * sin;
-        const y = initNormals[3 * j + 1];
-        const z = initNormals[3 * j + 0] * cos;
-        normals.push(x, y, z);
-      }
-    }
-    for (let i = 0; i < segments; i++) {
-      for (let j = 0; j < points.length - 1; j++) {
-        const base = j + i * points.length;
-        const a = base;
-        const b = base + points.length;
-        const c = base + points.length + 1;
-        const d = base + 1;
-        indices.push(a, b, d);
-        indices.push(c, d, b);
-      }
-    }
-    this.setIndex(indices);
-    this.setAttribute("position", new Float32BufferAttribute(vertices, 3));
-    this.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
-    this.setAttribute("normal", new Float32BufferAttribute(normals, 3));
-  }
-  copy(source) {
-    super.copy(source);
-    this.parameters = Object.assign({}, source.parameters);
-    return this;
-  }
-  static fromJSON(data) {
-    return new _LatheGeometry(data.points, data.segments, data.phiStart, data.phiLength);
-  }
-};
-var CapsuleGeometry = class _CapsuleGeometry extends LatheGeometry {
-  constructor(radius = 1, length = 1, capSegments = 4, radialSegments = 8) {
-    const path = new Path();
-    path.absarc(0, -length / 2, radius, Math.PI * 1.5, 0);
-    path.absarc(0, length / 2, radius, 0, Math.PI * 0.5);
-    super(path.getPoints(capSegments), radialSegments);
-    this.type = "CapsuleGeometry";
-    this.parameters = {
-      radius,
-      length,
-      capSegments,
-      radialSegments
-    };
-  }
-  static fromJSON(data) {
-    return new _CapsuleGeometry(data.radius, data.length, data.capSegments, data.radialSegments);
-  }
-};
 var CircleGeometry = class _CircleGeometry extends BufferGeometry {
   constructor(radius = 1, segments = 32, thetaStart = 0, thetaLength = Math.PI * 2) {
     super();
@@ -26072,7 +24936,7 @@ function comboMultiplier(cleanMeters) {
 }
 function baseSpeed(distance) {
   const steps = Math.floor(Math.max(0, distance) / 80);
-  return 14.5 * 1.08 ** steps;
+  return 18 * 1.08 ** steps;
 }
 function coverDistance(start, seconds) {
   return Math.max(0, start) + baseSpeed(start) * Math.max(0, seconds);
@@ -26117,9 +24981,9 @@ function stepChaser(gap, speed, dt, playerSpeed, distance, options) {
   const cruise = options.cruise ?? playerSpeed;
   const slow = Math.max(0, cruise - playerSpeed);
   let desired = playerSpeed + slow * 0.85 + (gap - targetGap) * 0.55;
-  if (options.sprint) desired += 5;
+  if (options.sprint) desired += 1.6;
   if (options.smoked) desired = Math.min(desired, playerSpeed * 0.82);
-  const accel = options.smoked ? 3 : 8.5;
+  const accel = options.smoked ? 1.6 : 3.2;
   const delta = Math.max(-accel * dt, Math.min(accel * dt, desired - speed));
   const nextSpeed = Math.max(0, speed + delta);
   let nextGap = gap + (playerSpeed - nextSpeed) * dt;
@@ -26195,7 +25059,7 @@ function lyricStops() {
   return LYRIC_CLIPS.map((clip) => {
     const stop = { ...clip, z };
     const ahead = coverDistance(z, clip.end - clip.start) - z;
-    z += ahead * 1.05;
+    z += ahead * 1.12;
     return stop;
   });
 }
@@ -26342,6 +25206,14 @@ function buildMesh(type) {
   if (type === "noodle-red") return noodleBowl(true);
   if (type === "pit") return pit();
   if (type === "crate") return plankCrate();
+  if (type === "pond") return pond();
+  if (type === "log") return log();
+  if (type === "hedge") return hedge(false);
+  if (type === "hedge-all") return hedge(true);
+  if (type === "boulder") return boulder();
+  if (type === "stall") return stall();
+  if (type === "banner") return banner();
+  if (type === "cart") return cart();
   if (type === "coin") return coin();
   if (type === "magnet") return gem("#3d7dff");
   if (type === "shoes") return gem("#ff5a36");
@@ -26670,44 +25542,6 @@ function noodleBowl(red) {
   group.userData.baseY = 0.95;
   return group;
 }
-function makeSuit() {
-  const suit = new Group();
-  suit.name = "suit";
-  suit.visible = false;
-  const jacketMat = mat("#1a4ed0", { roughness: 0.4 });
-  const pantsMat = mat("#12368f", { roughness: 0.48 });
-  const shirtMat = mat("#f6f7f8", { roughness: 0.5 });
-  const bowMat = mat("#161616", { roughness: 0.35 });
-  const jacket = new Mesh(new SphereGeometry(1, 24, 18), jacketMat);
-  jacket.scale.set(0.34, 0.16, 0.28);
-  jacket.position.set(0, 0.3, 0);
-  const legL = new Mesh(new CylinderGeometry(0.09, 0.1, 0.28, 10), pantsMat);
-  legL.position.set(-0.1, 0.14, 0);
-  const legR = legL.clone();
-  legR.position.x = 0.1;
-  const sleeveL = new Mesh(new CapsuleGeometry(0.07, 0.16, 4, 8), jacketMat);
-  sleeveL.rotation.z = 0.9;
-  sleeveL.position.set(-0.3, 0.3, 0);
-  const sleeveR = sleeveL.clone();
-  sleeveR.rotation.z = -0.9;
-  sleeveR.position.x = 0.32;
-  const collar = new Mesh(new TorusGeometry(0.1, 0.03, 8, 16), shirtMat);
-  collar.rotation.x = Math.PI / 2;
-  collar.position.set(0, 0.48, 0);
-  const collarBack = new Mesh(new BoxGeometry(0.16, 0.08, 0.05), shirtMat);
-  collarBack.position.set(0, 0.46, 0.14);
-  const shirt = new Mesh(new BoxGeometry(0.14, 0.18, 0.06), shirtMat);
-  shirt.position.set(0, 0.36, -0.3);
-  const bowL = new Mesh(new SphereGeometry(0.045, 10, 8), bowMat);
-  bowL.scale.set(1.7, 0.65, 0.45);
-  bowL.position.set(-0.055, 0.47, -0.28);
-  const bowR = bowL.clone();
-  bowR.position.x = 0.055;
-  const knot = new Mesh(new BoxGeometry(0.04, 0.035, 0.03), bowMat);
-  knot.position.set(0, 0.47, -0.3);
-  suit.add(legL, legR, jacket, sleeveL, sleeveR, collar, collarBack, shirt, bowL, bowR, knot);
-  return suit;
-}
 function makeMic() {
   const mic = new Group();
   mic.name = "mic";
@@ -26844,9 +25678,9 @@ function makePosable(template) {
     if (tall) {
       const ny = (y - minY) / height;
       const nx = (x - midX) / (width * 0.5);
-      leg = smoothstep2(0.48, 0.05, ny);
-      arm = smoothstep2(0.2, 0.55, Math.abs(nx)) * smoothstep2(0.42, 0.55, ny) * (1 - smoothstep2(0.74, 0.84, ny));
-      headW = smoothstep2(0.78, 0.88, ny);
+      leg = smoothstep2(0.62, 0.02, ny);
+      arm = Math.min(1, smoothstep2(0.05, 0.28, Math.abs(nx)) * smoothstep2(0.34, 0.5, ny) * (1 - smoothstep2(0.7, 0.82, ny)) * 1.45);
+      headW = smoothstep2(0.72, 0.84, ny);
     } else {
       leg = smoothstep2(0.25, 0.04, y);
       arm = smoothstep2(0.04, 0.1, Math.abs(x)) * smoothstep2(0.18, 0.3, y) * (1 - smoothstep2(0.44, 0.52, y));
@@ -26866,17 +25700,17 @@ function makePosable(template) {
 }
 function posePart(x, y, z, weight, pivot, rx, rz) {
   if (weight < 1e-3) return [x, y, z];
-  const px2 = x - pivot[0];
-  const py2 = y - pivot[1];
-  const pz2 = z - pivot[2];
+  const px = x - pivot[0];
+  const py = y - pivot[1];
+  const pz = z - pivot[2];
   const cx = Math.cos(rx);
   const sx = Math.sin(rx);
-  const y1 = py2 * cx - pz2 * sx;
-  const z1 = py2 * sx + pz2 * cx;
+  const y1 = py * cx - pz * sx;
+  const z1 = py * sx + pz * cx;
   const cz = Math.cos(rz);
   const sz = Math.sin(rz);
-  const x2 = px2 * cz - y1 * sz;
-  const y2 = px2 * sz + y1 * cz;
+  const x2 = px * cz - y1 * sz;
+  const y2 = px * sz + y1 * cz;
   const nx = pivot[0] + x2;
   const ny = pivot[1] + y2;
   const nz = pivot[2] + z1;
@@ -26944,6 +25778,19 @@ function runAngles(phase) {
     armZR: -0.15
   };
 }
+function taoRunAngles(phase) {
+  const swing = Math.sin(phase);
+  const kick = Math.sin(phase * 2);
+  return {
+    legL: swing * 2.15 + kick * 0.28,
+    legR: -swing * 2.15 - kick * 0.28,
+    armL: -swing * 2.35,
+    armR: swing * 2.35,
+    head: Math.sin(phase * 2) * 0.42,
+    armZL: 0.55 + Math.abs(swing) * 0.7,
+    armZR: -0.55 - Math.abs(swing) * 0.7
+  };
+}
 function fitWidth(root, targetWidth) {
   const box2 = new Box3().setFromObject(root);
   const size = new Vector3();
@@ -26991,6 +25838,89 @@ function plankCrate() {
   group.userData.baseY = 0;
   return group;
 }
+function pond() {
+  const mesh = new Mesh(new CylinderGeometry(1.15, 1.25, 0.08, 18), mat("#3f8f9a", { roughness: 0.25 }));
+  mesh.position.y = 0.04;
+  mesh.userData.baseY = 0.04;
+  return mesh;
+}
+function log() {
+  const mesh = new Mesh(new CylinderGeometry(0.28, 0.32, 1.7, 10), mat("#7a4e2d", { roughness: 0.85 }));
+  mesh.rotation.z = Math.PI / 2;
+  mesh.position.y = 0.32;
+  mesh.userData.baseY = 0.32;
+  return mesh;
+}
+function hedge(wide) {
+  const mesh = new Mesh(new BoxGeometry(wide ? 10.2 : 1.7, 0.7, 0.7), mat("#3f7a45", { roughness: 0.9 }));
+  mesh.position.y = 0.35;
+  mesh.userData.baseY = 0.35;
+  return mesh;
+}
+function boulder() {
+  const group = new Group();
+  const a = new Mesh(new DodecahedronGeometry(0.55, 0), mat("#6d7a52", { roughness: 0.92 }));
+  a.position.set(0, 0.48, 0);
+  a.scale.set(1.2, 0.8, 1);
+  const b = new Mesh(new DodecahedronGeometry(0.28, 0), mat("#8a8478", { roughness: 0.95 }));
+  b.position.set(0.38, 0.28, 0.1);
+  group.add(a, b);
+  group.userData.baseY = 0;
+  return group;
+}
+function stall() {
+  const group = new Group();
+  const wood = mat("#a56b3c");
+  const top = new Mesh(new BoxGeometry(1.7, 0.12, 1.15), mat("#d4544a", { roughness: 0.7 }));
+  top.position.y = 1.15;
+  const table = new Mesh(new BoxGeometry(1.45, 0.12, 0.9), wood);
+  table.position.y = 0.72;
+  for (const x of [-0.6, 0.6]) {
+    for (const z of [-0.35, 0.35]) {
+      const leg = new Mesh(new BoxGeometry(0.08, 0.72, 0.08), wood);
+      leg.position.set(x, 0.36, z);
+      group.add(leg);
+    }
+  }
+  const goods = new Mesh(new BoxGeometry(0.7, 0.28, 0.45), mat("#f2c14e"));
+  goods.position.set(0, 0.92, 0);
+  group.add(top, table, goods);
+  group.userData.baseY = 0;
+  return group;
+}
+function banner() {
+  const group = new Group();
+  const cloth = new Mesh(new BoxGeometry(1.8, 0.08, 0.55), mat("#e07a3d", { roughness: 0.65 }));
+  cloth.position.y = 1.25;
+  for (const x of [-0.85, 0.85]) {
+    const post = new Mesh(new CylinderGeometry(0.05, 0.06, 1.3, 6), mat("#6b4a32"));
+    post.position.set(x, 0.65, 0);
+    group.add(post);
+  }
+  group.add(cloth);
+  group.userData.baseY = 0;
+  return group;
+}
+function cart() {
+  const group = new Group();
+  const bed = new Mesh(new BoxGeometry(1.35, 0.35, 1.9), mat("#c4844a", { roughness: 0.8 }));
+  bed.position.y = 0.55;
+  const load = new Mesh(new BoxGeometry(1.1, 0.45, 1.3), mat("#d8d2c8"));
+  load.position.y = 0.9;
+  const wheel = new CylinderGeometry(0.24, 0.24, 0.12, 10);
+  const rubber = mat("#2a241e");
+  for (const z of [-0.55, 0.55]) {
+    for (const x of [-0.62, 0.62]) {
+      const w = new Mesh(wheel, rubber);
+      w.rotation.z = Math.PI / 2;
+      w.position.set(x, 0.24, z);
+      group.add(w);
+    }
+  }
+  group.add(bed, load);
+  group.userData.baseY = 0;
+  return group;
+}
 function makeTrackTexture() {
   const canvas = document.createElement("canvas");
   canvas.width = 512;
@@ -27033,29 +25963,124 @@ function makeTrackTexture() {
   texture.repeat.set(1, 12);
   return texture;
 }
-function facade(side, theme, seed) {
+var MAP_SPAN = 480;
+var MAP_NAMES = ["street", "park", "market"];
+var MAP_LABEL = { street: "\u8857\u533A", park: "\u516C\u56ED", market: "\u591C\u5E02" };
+function mapOf(z) {
+  return MAP_NAMES[Math.floor(Math.max(0, z) / MAP_SPAN) % MAP_NAMES.length];
+}
+function clearGroup(group) {
+  while (group.children.length) {
+    const child = group.children[0];
+    group.remove(child);
+    child.traverse((node) => {
+      if (node.geometry) node.geometry.dispose();
+    });
+  }
+}
+function streetFacade(side, seed, z) {
+  const styles = [
+    { wall: "#f4e3c8", roof: "#c45c4a", trim: "#e07a5f", floors: 2 },
+    { wall: "#ead7c3", roof: "#8d4a3a", trim: "#f2c14e", floors: 3 },
+    { wall: "#d9e6ee", roof: "#3d6e8c", trim: "#f7f7f4", floors: 2 },
+    { wall: "#f6d7a2", roof: "#8c5a3c", trim: "#6b8f71", floors: 1 },
+    { wall: "#efe8df", roof: "#5c6b73", trim: "#e8b84a", floors: 3 },
+    { wall: "#f3e6d8", roof: "#b85c38", trim: "#fffaf0", floors: 2 }
+  ];
+  const theme = styles[Math.abs(seed) % styles.length];
   const group = new Group();
-  const height = 3.1 + seed % 3 * 0.85;
-  const depth = 7.2;
-  const wall2 = mat(theme.wall, { roughness: 0.78 });
-  const body = new Mesh(new BoxGeometry(3.1, height, depth), wall2);
-  body.position.set(side * 9.3, height * 0.5, 0);
-  const roof = new Mesh(new BoxGeometry(3.4, 0.28, depth + 0.3), mat(theme.roof));
-  roof.position.set(side * 9.3, height + 0.12, 0);
-  const awning = new Mesh(new BoxGeometry(1.15, 0.08, 2.2), mat(theme.trim));
-  awning.position.set(side * 7.7, 1.7, -1.6);
-  const door = new Mesh(new BoxGeometry(0.12, 1.35, 0.7), mat("#3a2a22"));
-  door.position.set(side * 7.72, 0.7, -1.6);
-  const glass = mat("#d5e7f2", { roughness: 0.2, metalness: 0.05 });
-  group.add(body, roof, awning, door);
-  for (let row = 0; row < 2; row += 1) {
-    for (let col = 0; col < 3; col += 1) {
-      const win = new Mesh(new BoxGeometry(0.1, 0.7, 0.85), glass);
-      win.position.set(side * 7.68, 1.15 + row * 1.15, -0.2 + col * 1.7);
+  const height = 2.2 + theme.floors * 1.05;
+  const depth = 5.2;
+  const body = new Mesh(new BoxGeometry(2.7, height, depth), mat(theme.wall, { roughness: 0.78 }));
+  body.position.set(side * 9.2, height * 0.5, z);
+  const roof = new Mesh(new BoxGeometry(3, 0.24, depth + 0.25), mat(theme.roof));
+  roof.position.set(side * 9.2, height + 0.1, z);
+  const awning = new Mesh(new BoxGeometry(1.05, 0.08, 1.6), mat(theme.trim));
+  awning.position.set(side * 7.8, 1.55, z - 1.2);
+  const door = new Mesh(new BoxGeometry(0.1, 1.2, 0.62), mat("#3a2a22"));
+  door.position.set(side * 7.82, 0.62, z - 1.2);
+  const sign = new Mesh(new BoxGeometry(0.08, 0.42, 0.9), mat(theme.trim));
+  sign.position.set(side * 7.78, 2.15, z - 1.2);
+  group.add(body, roof, awning, door, sign);
+  const glass = mat("#d5e7f2", { roughness: 0.2 });
+  for (let row = 0; row < theme.floors; row += 1) {
+    for (let col = 0; col < 2; col += 1) {
+      const win = new Mesh(new BoxGeometry(0.08, 0.55, 0.7), glass);
+      win.position.set(side * 7.82, 1.05 + row * 1.05, z + 0.4 + col * 1.35);
       group.add(win);
     }
   }
+  if (theme.floors > 2) {
+    const chimney = new Mesh(new BoxGeometry(0.28, 0.7, 0.28), mat("#6a4038"));
+    chimney.position.set(side * 8.6, height + 0.45, z + 1.4);
+    group.add(chimney);
+  }
   return group;
+}
+function fillStreet(group, n) {
+  group.add(streetFacade(-1, n, -4.2));
+  group.add(streetFacade(-1, n + 3, 4.8));
+  group.add(streetFacade(1, n + 1, -3.6));
+  group.add(streetFacade(1, n + 4, 5.2));
+  group.add(lampPost(-1, 0.2));
+  group.add(lampPost(1, -0.4));
+  group.add(yardTree(n % 2 ? 1 : -1, 0.6));
+}
+function fillPark(group, n) {
+  const spots = [-6.2, -2.4, 1.8, 5.6];
+  spots.forEach((z, index) => {
+    const side = index % 2 === 0 ? -1 : 1;
+    const tree = yardTree(side, z);
+    tree.scale.setScalar(index % 3 === 0 ? 1.35 : 0.85);
+    group.add(tree);
+    const bush = new Mesh(new SphereGeometry(0.36, 8, 6), mat(index % 2 ? "#5f9a48" : "#7dae62"));
+    bush.position.set(side * 5.6, 0.28, z + 1.1);
+    group.add(bush);
+  });
+  const roof = new Mesh(new BoxGeometry(2.4, 0.12, 2.2), mat("#8d5a3a"));
+  roof.position.set((n % 2 ? 1 : -1) * 8.4, 2.15, 0);
+  group.add(roof);
+  for (const x of [-0.8, 0.8]) {
+    for (const z of [-0.7, 0.7]) {
+      const post = new Mesh(new CylinderGeometry(0.06, 0.08, 2.1, 6), mat("#6b4a32"));
+      post.position.set((n % 2 ? 1 : -1) * 8.4 + x, 1.05, z);
+      group.add(post);
+    }
+  }
+}
+function fillMarket(group, n) {
+  const cloths = ["#d4544a", "#e0a030", "#3d6e8c", "#c45c4a"];
+  [-5.2, -1.2, 2.8, 6.2].forEach((z, index) => {
+    const side = index % 2 === 0 ? -1 : 1;
+    const stall2 = new Group();
+    const cloth = new Mesh(new BoxGeometry(2.4, 0.1, 1.8), mat(cloths[(n + index) % cloths.length]));
+    cloth.position.set(side * 8.2, 2.05, z);
+    const poleMat = mat("#5c3b2e");
+    for (const x of [-0.9, 0.9]) {
+      const pole = new Mesh(new CylinderGeometry(0.05, 0.07, 2, 6), poleMat);
+      pole.position.set(side * 8.2 + x, 1, z);
+      stall2.add(pole);
+    }
+    const lantern = new Mesh(new SphereGeometry(0.16, 8, 6), mat("#ffd978", { emissive: "#ffbf4a", emissiveIntensity: 0.45 }));
+    lantern.position.set(side * 7.2, 1.7, z + 0.2);
+    stall2.add(cloth, lantern);
+    group.add(stall2);
+  });
+}
+function makeSceneryBlock(n) {
+  const group = new Group();
+  group.userData.seed = n;
+  group.userData.mapId = "";
+  return group;
+}
+function dressBlock(block, mapId) {
+  if (block.userData.mapId === mapId) return;
+  clearGroup(block);
+  const n = block.userData.seed || 0;
+  if (mapId === "park") fillPark(block, n);
+  else if (mapId === "market") fillMarket(block, n);
+  else fillStreet(block, n);
+  block.userData.mapId = mapId;
 }
 function yardTree(side, z) {
   const group = new Group();
@@ -27075,25 +26100,6 @@ function lampPost(side, z) {
   const head = new Mesh(new SphereGeometry(0.16, 10, 8), mat("#fff6d2", { emissive: "#fff1c2", emissiveIntensity: 0.35 }));
   head.position.set(side * 6.35, 2.45, z);
   group.add(pole, head);
-  return group;
-}
-function makeStreetBlock(n) {
-  const themes = [
-    { wall: "#f4e3c8", roof: "#c45c4a", trim: "#e07a5f" },
-    { wall: "#d9e6ee", roof: "#3d6e8c", trim: "#f4f7f8" },
-    { wall: "#f6d7a2", roof: "#8c5a3c", trim: "#6b8f71" },
-    { wall: "#efe8df", roof: "#5c6b73", trim: "#e8b84a" }
-  ];
-  const group = new Group();
-  group.add(facade(-1, themes[n % 4], n));
-  group.add(facade(1, themes[(n + 1) % 4], n + 2));
-  group.add(yardTree(-1, 5.2));
-  group.add(yardTree(1, -4.4));
-  group.add(lampPost(-1, -6.2));
-  group.add(lampPost(1, 6.4));
-  const bush = new Mesh(new SphereGeometry(0.28, 8, 6), mat("#7da86a"));
-  bush.position.set((n % 2 ? 1 : -1) * 6.7, 0.22, 0.4);
-  group.add(bush);
   return group;
 }
 function freshRun() {
@@ -27169,7 +26175,8 @@ function createGame(canvas, hooks) {
   const STREET_SPAN = 18;
   const street = [];
   for (let i = 0; i < 8; i += 1) {
-    const block = makeStreetBlock(i);
+    const block = makeSceneryBlock(i);
+    dressBlock(block, "street");
     block.userData.home = (i - 1) * STREET_SPAN;
     block.position.z = block.userData.home;
     scene.add(block);
@@ -27183,7 +26190,6 @@ function createGame(canvas, hooks) {
   scene.add(shadow);
   let playerMats = [];
   let playerRig = null;
-  let playerSuit = null;
   let playerMic = null;
   let chaserRig = null;
   let modelReady = false;
@@ -27245,8 +26251,6 @@ function createGame(canvas, hooks) {
     fitWidth(playerRig.root, 1.5);
     const villainBox = fitWidth(chaserRig.root, 1.78);
     player.add(playerRig.root);
-    playerSuit = makeSuit();
-    playerRig.root.add(playerSuit);
     playerMic = makeMic();
     playerRig.root.add(playerMic);
     chaser.add(chaserRig.root);
@@ -27373,6 +26377,55 @@ function createGame(canvas, hooks) {
         continue;
       }
       const band = run.distance + (run.cursor - run.z);
+      const theme = mapOf(z);
+      if (theme === "park") {
+        if (roll < 0.34) {
+          const blocked = lane();
+          spawn("boulder", "high", z, blocked, 1.15);
+          coinLine(z + 2.2, (blocked + 1) % 3);
+          run.lastForced = "high";
+        } else if (roll < 0.5) {
+          const open = lane();
+          for (let i = 0; i < 3; i += 1) if (i !== open) spawn("boulder", "high", z, i, 1.15);
+          coinLine(z + 2.2, open);
+          run.lastForced = "high";
+        } else if (roll < 0.66) {
+          spawn(roll < 0.58 ? "log" : "hedge-all", "low", z, roll < 0.58 ? lane() : null, 0.9);
+          run.lastForced = "low";
+        } else if (roll < 0.84 && band > 80 && !crowdsPit(z, 4)) {
+          const open = lane();
+          for (let i = 0; i < 3; i += 1) if (i !== open) spawn("pond", "pit", z, i, 2.4);
+          coinLine(z + 3.2, open);
+          run.lastForced = "fatal";
+        } else {
+          spawn("log", "low", z, lane(), 1.2);
+          run.lastForced = "low";
+        }
+        continue;
+      }
+      if (theme === "market") {
+        if (roll < 0.36) {
+          const blocked = lane();
+          spawn("stall", "high", z, blocked, 1.2);
+          coinLine(z + 2.2, (blocked + 1) % 3);
+          run.lastForced = "high";
+        } else if (roll < 0.52) {
+          const open = lane();
+          for (let i = 0; i < 3; i += 1) if (i !== open) spawn("stall", "high", z, i, 1.2);
+          coinLine(z + 2.2, open);
+          run.lastForced = "high";
+        } else if (roll < 0.7) {
+          spawn("banner", "low", z, lane(), 0.8);
+          run.lastForced = "low";
+        } else if (roll < 0.86) {
+          spawn("cart", "high", z, lane(), 1.6);
+          run.lastForced = "high";
+        } else {
+          spawn("crate", "crate", z, lane(), 1.1);
+          run.lastForced = "";
+        }
+        continue;
+      }
       if (roll < 0.36) {
         const blocked = lane();
         spawn("block", "high", z, blocked, 1.05);
@@ -27397,11 +26450,12 @@ function createGame(canvas, hooks) {
         const obj = spawn(styles[Math.random() * 3 | 0], "oncoming", z + 26, lane(), 8);
         obj.half = 0.95;
         obj.mesh.scale.z = 8 / 7.4;
+        run.cursor += speed * 0.65;
         run.lastForced = "";
         continue;
       }
       if (roll < 0.86 && band > 70 && !crowdsPit(z + 14, 28)) {
-        run.cursor = spawnRide(z, lane());
+        run.cursor = spawnRide(z, lane()) + speed * 0.65;
         run.lastForced = "";
         continue;
       }
@@ -27414,6 +26468,7 @@ function createGame(canvas, hooks) {
       }
       if (band > 50 && !crowdsPit(z, 8)) {
         spawn("truck", "fatal", z, lane(), 5.2);
+        run.cursor += speed * 0.65;
         run.lastForced = "fatal";
         continue;
       }
@@ -27570,7 +26625,7 @@ function createGame(canvas, hooks) {
     }
     hooks.onChuckle?.();
     run.gap = Math.min(run.gap, 6.5);
-    run.sprintT = 2.4;
+    run.sprintT = 0.8;
     run.chasePause = 0;
     run.iframes = 0.7;
   }
@@ -27692,7 +26747,6 @@ function createGame(canvas, hooks) {
     if (hadPoop && run.poop <= 0) hooks.onPoop?.(false);
     run.shroom = Math.max(0, run.shroom - dt);
     run.noodle = Math.max(0, run.noodle - dt);
-    if (playerSuit) playerSuit.visible = run.noodle > 0 && run.fly <= 0;
     if (playerMic) playerMic.visible = run.boost > 0;
     run.board = Math.max(0, run.board - dt);
     run.stumble = Math.max(0, run.stumble - dt);
@@ -27727,31 +26781,35 @@ function createGame(canvas, hooks) {
     if (run.phase === "play") run.floor = ride.floor;
     const bodyY = run.fly > 0 ? 3.6 : run.mode === "jumping" ? run.jumpBase + arc : run.floor;
     player.position.set(run.x, bodyY, run.z);
-    const phase = run.distance * 1.55;
-    const bob = run.mode === "running" ? Math.abs(Math.sin(phase)) * 0.07 : 0;
+    const ham = heroId === "tao";
+    const phase = run.distance * (ham ? 2.2 : 1.55);
+    const bob = run.mode === "running" ? Math.abs(Math.sin(phase)) * (ham ? 0.2 : 0.07) : 0;
     player.rotation.order = "YXZ";
     player.rotation.y = Math.PI;
-    player.rotation.z = (target - run.x) * -0.45;
+    player.rotation.z = (target - run.x) * (ham ? -0.9 : -0.45);
+    if (ham && run.mode === "running") player.rotation.z += Math.sin(phase * 0.5) * 0.28;
     if (run.mode === "sliding") {
       player.scale.set(1.08, 0.42, 1.2);
-      player.rotation.x = 0.12;
-      poseRig(playerRig, { legL: 0.7, legR: 0.7, armL: -0.45, armR: -0.45, head: 0.1, armZL: 0.12, armZR: -0.12 });
+      player.rotation.x = ham ? 0.42 : 0.12;
+      poseRig(playerRig, ham ? { legL: 1.35, legR: 1.55, armL: -1.4, armR: 0.8, head: 0.55, armZL: 0.9, armZR: -1.1 } : { legL: 0.7, legR: 0.7, armL: -0.45, armR: -0.45, head: 0.1, armZL: 0.12, armZR: -0.12 });
     } else if (run.mode === "jumping") {
       const u = Math.min(1, run.modeT / 0.68);
       player.scale.set(1, 1, 1);
       if (u < 0.18) {
-        player.rotation.x = 0.2;
-        poseRig(playerRig, { legL: 0.8, legR: 0.8, armL: 0.4, armR: 0.4, head: 0.1, armZL: 0.2, armZR: -0.2 });
+        player.rotation.x = ham ? 0.55 : 0.2;
+        poseRig(playerRig, ham ? { legL: 1.6, legR: 1.7, armL: 1.5, armR: 1.5, head: 0.4, armZL: 0.8, armZR: -0.8 } : { legL: 0.8, legR: 0.8, armL: 0.4, armR: 0.4, head: 0.1, armZL: 0.2, armZR: -0.2 });
       } else if (u > 0.82) {
-        player.rotation.x = 0.16;
-        poseRig(playerRig, { legL: 0.55, legR: 0.55, armL: -0.2, armR: -0.2, head: 0.08, armZL: 0.1, armZR: -0.1 });
+        player.rotation.x = ham ? 0.48 : 0.16;
+        poseRig(playerRig, ham ? { legL: 1.2, legR: 1.35, armL: -0.9, armR: -0.7, head: 0.35, armZL: 0.55, armZR: -0.4 } : { legL: 0.55, legR: 0.55, armL: -0.2, armR: -0.2, head: 0.08, armZL: 0.1, armZR: -0.1 });
       } else {
-        player.rotation.x = -0.2;
-        poseRig(playerRig, { legL: -0.9, legR: -0.9, armL: 1.05, armR: 1.05, head: -0.15, armZL: 0.45, armZR: -0.45 });
+        player.rotation.x = ham ? -0.62 : -0.2;
+        player.rotation.z += ham ? Math.sin(run.modeT * 18) * 0.2 : 0;
+        poseRig(playerRig, ham ? { legL: -1.7, legR: -1.85, armL: 1.9, armR: 1.9, head: -0.55, armZL: 1.15, armZR: -1.15 } : { legL: -0.9, legR: -0.9, armL: 1.05, armR: 1.05, head: -0.15, armZL: 0.45, armZR: -0.45 });
       }
     } else {
       player.scale.set(1, 1, 1);
-      const stride = runAngles(phase);
+      const stride = ham ? taoRunAngles(phase) : runAngles(phase);
+      if (ham) player.rotation.x = 0.22 + Math.sin(phase) * 0.16;
       if (run.poop > 0) {
         const laugh2 = Math.sin(run.distance * 9);
         player.rotation.x = 0.22 + laugh2 * 0.16;
@@ -27765,7 +26823,7 @@ function createGame(canvas, hooks) {
           armZR: -0.75
         });
       } else {
-        player.rotation.x = 0.08;
+        if (!ham) player.rotation.x = 0.08;
         poseRig(playerRig, stride);
       }
       if (run.poop <= 0 && run.shroom > 0) {
@@ -27834,8 +26892,8 @@ function createGame(canvas, hooks) {
     if (run.distance > 500) run.sprintCd -= dt;
     else run.sprintCd -= dt * 0.55;
     if (run.sprintCd <= 0) {
-      run.sprintT = 1.15;
-      run.sprintCd = run.distance > 500 ? 7.5 : 13;
+      run.sprintT = 0.55;
+      run.sprintCd = run.distance > 500 ? 12 : 18;
     }
     run.sprintT = Math.max(0, run.sprintT - dt);
     run.chasePause = Math.max(0, run.chasePause - dt);
@@ -27931,20 +26989,40 @@ function createGame(canvas, hooks) {
   let laughDur = 6.1;
   let laughTold = false;
   function applyLaugh(t, level, anchor) {
-    const bend = bendAt(Math.min(t, laughDur)) * 0.78;
-    const shake = Math.sin(t * 22) * (0.03 + level * 0.08);
-    player.rotation.set(bend, 0, shake);
+    if (heroId === "dudu") {
+      const hop = Math.sin(t % 0.38 / 0.38 * Math.PI);
+      const up = hop * hop;
+      const crouch = 1 - hop;
+      player.rotation.set(crouch * 0.22 - up * 0.12, 0, 0);
+      player.scale.set(1, 1, 1);
+      player.position.set(anchor?.x ?? 0, up * 1.05, anchor?.z ?? 0);
+      poseRig(playerRig, {
+        legL: crouch * 1.25 - up * 0.85,
+        legR: crouch * 1.25 - up * 0.85,
+        armL: -0.15 - up * 1.35,
+        armR: -0.15 - up * 1.35,
+        armZL: 0.15,
+        armZR: -0.15,
+        head: up * 0.12
+      });
+      return;
+    }
+    const ham = heroId === "tao";
+    const bend = bendAt(Math.min(t, laughDur)) * (ham ? 1.45 : 0.78);
+    const shake = Math.sin(t * (ham ? 30 : 22)) * ((ham ? 0.16 : 0.03) + level * (ham ? 0.18 : 0.08));
+    player.rotation.set(bend, 0, shake + (ham ? Math.sin(t * 8) * 0.28 : 0));
     player.scale.set(1, 1, 1);
-    player.position.set(anchor?.x ?? 0, Math.abs(Math.sin(t * 16)) * 0.025, anchor?.z ?? 0);
-    const clutch = 0.55 + level * 0.45;
+    player.position.set(anchor?.x ?? 0, Math.abs(Math.sin(t * (ham ? 10 : 16))) * (ham ? 0.16 : 0.025), anchor?.z ?? 0);
+    const clutch = ham ? 1.55 + level * 0.35 : 0.55 + level * 0.45;
+    const nod = ham ? Math.sin(t * 16) * 0.45 : 0;
     poseRig(playerRig, {
-      legL: 0.12,
-      legR: -0.08,
-      armL: -0.25,
-      armR: -0.25,
+      legL: ham ? 0.85 + Math.sin(t * 12) * 0.55 : 0.12,
+      legR: ham ? -1.05 - Math.sin(t * 12) * 0.4 : -0.08,
+      armL: ham ? -1.35 : -0.25,
+      armR: ham ? -1.35 : -0.25,
       armZL: clutch,
       armZR: -clutch,
-      head: -0.28 - level * 0.2
+      head: (ham ? -0.95 : -0.28) - level * (ham ? 0.4 : 0.2) + nod
     });
   }
   function frameCamera() {
@@ -27980,14 +27058,26 @@ function createGame(canvas, hooks) {
     track.material.map.offset.y = -run.z / 8;
     const span = STREET_SPAN * street.length;
     const back = run.z - 28;
+    const look = mapOf(run.z);
+    const sky = look === "park" ? "#c6eb9c" : look === "market" ? "#f2b27a" : "#9fd8f5";
+    const fog = look === "park" ? "#d9f2c4" : look === "market" ? "#f6d2b0" : "#b7dff6";
+    const ground = look === "park" ? "#7eb85a" : look === "market" ? "#d7b48a" : "#b7d39a";
+    const road = look === "park" ? "#e4efd2" : look === "market" ? "#f3d7b0" : "#ffffff";
+    scene.background.set(sky);
+    scene.fog.color.set(fog);
+    renderer.setClearColor(sky);
+    grass.material.color.set(ground);
+    track.material.color.set(road);
     for (const block of street) {
       let z = block.userData.home;
       while (z < back) z += span;
       block.position.z = z;
+      dressBlock(block, mapOf(z));
     }
   }
   function hud() {
     const effects = [];
+    if (run.phase === "play") effects.push({ name: MAP_LABEL[mapOf(run.z)], t: 0 });
     if (run.magnet > 0) effects.push({ name: "\u78C1\u529B", t: run.magnet });
     if (run.shoes > 0) effects.push({ name: "\u52A0\u901F", t: run.shoes });
     if (run.inv > 0) effects.push({ name: "\u65E0\u654C", t: run.inv });

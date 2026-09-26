@@ -38,7 +38,7 @@ function lyricStops() {
   return LYRIC_CLIPS.map((clip) => {
     const stop = { ...clip, z };
     const ahead = coverDistance(z, clip.end - clip.start) - z;
-    z += ahead * 1.05;
+    z += ahead * 1.12;
     return stop;
   });
 }
@@ -204,6 +204,14 @@ function buildMesh(type) {
   if (type === 'noodle-red') return noodleBowl(true);
   if (type === 'pit') return pit();
   if (type === 'crate') return plankCrate();
+  if (type === 'pond') return pond();
+  if (type === 'log') return log();
+  if (type === 'hedge') return hedge(false);
+  if (type === 'hedge-all') return hedge(true);
+  if (type === 'boulder') return boulder();
+  if (type === 'stall') return stall();
+  if (type === 'banner') return banner();
+  if (type === 'cart') return cart();
   if (type === 'coin') return coin();
   if (type === 'magnet') return gem('#3d7dff');
   if (type === 'shoes') return gem('#ff5a36');
@@ -480,45 +488,6 @@ function noodleBowl(red) {
   return group;
 }
 
-function makeSuit() {
-  const suit = new THREE.Group();
-  suit.name = 'suit';
-  suit.visible = false;
-  const jacketMat = mat('#1a4ed0', { roughness: 0.4 });
-  const pantsMat = mat('#12368f', { roughness: 0.48 });
-  const shirtMat = mat('#f6f7f8', { roughness: 0.5 });
-  const bowMat = mat('#161616', { roughness: 0.35 });
-  const jacket = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 18), jacketMat);
-  jacket.scale.set(0.34, 0.16, 0.28);
-  jacket.position.set(0, 0.3, 0);
-  const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.1, 0.28, 10), pantsMat);
-  legL.position.set(-0.1, 0.14, 0);
-  const legR = legL.clone();
-  legR.position.x = 0.1;
-  const sleeveL = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.16, 4, 8), jacketMat);
-  sleeveL.rotation.z = 0.9;
-  sleeveL.position.set(-0.3, 0.3, 0);
-  const sleeveR = sleeveL.clone();
-  sleeveR.rotation.z = -0.9;
-  sleeveR.position.x = 0.32;
-  const collar = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.03, 8, 16), shirtMat);
-  collar.rotation.x = Math.PI / 2;
-  collar.position.set(0, 0.48, 0);
-  const collarBack = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.08, 0.05), shirtMat);
-  collarBack.position.set(0, 0.46, 0.14);
-  const shirt = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.18, 0.06), shirtMat);
-  shirt.position.set(0, 0.36, -0.3);
-  const bowL = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), bowMat);
-  bowL.scale.set(1.7, 0.65, 0.45);
-  bowL.position.set(-0.055, 0.47, -0.28);
-  const bowR = bowL.clone();
-  bowR.position.x = 0.055;
-  const knot = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.035, 0.03), bowMat);
-  knot.position.set(0, 0.47, -0.3);
-  suit.add(legL, legR, jacket, sleeveL, sleeveR, collar, collarBack, shirt, bowL, bowR, knot);
-  return suit;
-}
-
 function makeMic() {
   const mic = new THREE.Group();
   mic.name = 'mic';
@@ -665,9 +634,9 @@ function makePosable(template) {
     if (tall) {
       const ny = (y - minY) / height;
       const nx = (x - midX) / (width * 0.5);
-      leg = smoothstep(0.48, 0.05, ny);
-      arm = smoothstep(0.2, 0.55, Math.abs(nx)) * smoothstep(0.42, 0.55, ny) * (1 - smoothstep(0.74, 0.84, ny));
-      headW = smoothstep(0.78, 0.88, ny);
+      leg = smoothstep(0.62, 0.02, ny);
+      arm = Math.min(1, smoothstep(0.05, 0.28, Math.abs(nx)) * smoothstep(0.34, 0.5, ny) * (1 - smoothstep(0.7, 0.82, ny)) * 1.45);
+      headW = smoothstep(0.72, 0.84, ny);
     } else {
       leg = smoothstep(0.25, 0.04, y);
       arm = smoothstep(0.04, 0.1, Math.abs(x)) * smoothstep(0.18, 0.3, y) * (1 - smoothstep(0.44, 0.52, y));
@@ -771,6 +740,20 @@ function runAngles(phase) {
   };
 }
 
+function taoRunAngles(phase) {
+  const swing = Math.sin(phase);
+  const kick = Math.sin(phase * 2);
+  return {
+    legL: swing * 2.15 + kick * 0.28,
+    legR: -swing * 2.15 - kick * 0.28,
+    armL: -swing * 2.35,
+    armR: swing * 2.35,
+    head: Math.sin(phase * 2) * 0.42,
+    armZL: 0.55 + Math.abs(swing) * 0.7,
+    armZR: -0.55 - Math.abs(swing) * 0.7,
+  };
+}
+
 function fitWidth(root, targetWidth) {
   const box = new THREE.Box3().setFromObject(root);
   const size = new THREE.Vector3();
@@ -843,6 +826,96 @@ function plankCrate() {
   return group;
 }
 
+function pond() {
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.25, 0.08, 18), mat('#3f8f9a', { roughness: 0.25 }));
+  mesh.position.y = 0.04;
+  mesh.userData.baseY = 0.04;
+  return mesh;
+}
+
+function log() {
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 1.7, 10), mat('#7a4e2d', { roughness: 0.85 }));
+  mesh.rotation.z = Math.PI / 2;
+  mesh.position.y = 0.32;
+  mesh.userData.baseY = 0.32;
+  return mesh;
+}
+
+function hedge(wide) {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(wide ? 10.2 : 1.7, 0.7, 0.7), mat('#3f7a45', { roughness: 0.9 }));
+  mesh.position.y = 0.35;
+  mesh.userData.baseY = 0.35;
+  return mesh;
+}
+
+function boulder() {
+  const group = new THREE.Group();
+  const a = new THREE.Mesh(new THREE.DodecahedronGeometry(0.55, 0), mat('#6d7a52', { roughness: 0.92 }));
+  a.position.set(0, 0.48, 0);
+  a.scale.set(1.2, 0.8, 1);
+  const b = new THREE.Mesh(new THREE.DodecahedronGeometry(0.28, 0), mat('#8a8478', { roughness: 0.95 }));
+  b.position.set(0.38, 0.28, 0.1);
+  group.add(a, b);
+  group.userData.baseY = 0;
+  return group;
+}
+
+function stall() {
+  const group = new THREE.Group();
+  const wood = mat('#a56b3c');
+  const top = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.12, 1.15), mat('#d4544a', { roughness: 0.7 }));
+  top.position.y = 1.15;
+  const table = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.12, 0.9), wood);
+  table.position.y = 0.72;
+  for (const x of [-0.6, 0.6]) {
+    for (const z of [-0.35, 0.35]) {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.72, 0.08), wood);
+      leg.position.set(x, 0.36, z);
+      group.add(leg);
+    }
+  }
+  const goods = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.28, 0.45), mat('#f2c14e'));
+  goods.position.set(0, 0.92, 0);
+  group.add(top, table, goods);
+  group.userData.baseY = 0;
+  return group;
+}
+
+function banner() {
+  const group = new THREE.Group();
+  const cloth = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.08, 0.55), mat('#e07a3d', { roughness: 0.65 }));
+  cloth.position.y = 1.25;
+  for (const x of [-0.85, 0.85]) {
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 1.3, 6), mat('#6b4a32'));
+    post.position.set(x, 0.65, 0);
+    group.add(post);
+  }
+  group.add(cloth);
+  group.userData.baseY = 0;
+  return group;
+}
+
+function cart() {
+  const group = new THREE.Group();
+  const bed = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.35, 1.9), mat('#c4844a', { roughness: 0.8 }));
+  bed.position.y = 0.55;
+  const load = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.45, 1.3), mat('#d8d2c8'));
+  load.position.y = 0.9;
+  const wheel = new THREE.CylinderGeometry(0.24, 0.24, 0.12, 10);
+  const rubber = mat('#2a241e');
+  for (const z of [-0.55, 0.55]) {
+    for (const x of [-0.62, 0.62]) {
+      const w = new THREE.Mesh(wheel, rubber);
+      w.rotation.z = Math.PI / 2;
+      w.position.set(x, 0.24, z);
+      group.add(w);
+    }
+  }
+  group.add(bed, load);
+  group.userData.baseY = 0;
+  return group;
+}
+
 function makeTrackTexture() {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
@@ -886,29 +959,132 @@ function makeTrackTexture() {
   return texture;
 }
 
-function facade(side, theme, seed) {
+const MAP_SPAN = 480;
+const MAP_NAMES = ['street', 'park', 'market'];
+const MAP_LABEL = { street: '街区', park: '公园', market: '夜市' };
+
+function mapOf(z) {
+  return MAP_NAMES[Math.floor(Math.max(0, z) / MAP_SPAN) % MAP_NAMES.length];
+}
+
+function clearGroup(group) {
+  while (group.children.length) {
+    const child = group.children[0];
+    group.remove(child);
+    child.traverse((node) => {
+      if (node.geometry) node.geometry.dispose();
+    });
+  }
+}
+
+function streetFacade(side, seed, z) {
+  const styles = [
+    { wall: '#f4e3c8', roof: '#c45c4a', trim: '#e07a5f', floors: 2 },
+    { wall: '#ead7c3', roof: '#8d4a3a', trim: '#f2c14e', floors: 3 },
+    { wall: '#d9e6ee', roof: '#3d6e8c', trim: '#f7f7f4', floors: 2 },
+    { wall: '#f6d7a2', roof: '#8c5a3c', trim: '#6b8f71', floors: 1 },
+    { wall: '#efe8df', roof: '#5c6b73', trim: '#e8b84a', floors: 3 },
+    { wall: '#f3e6d8', roof: '#b85c38', trim: '#fffaf0', floors: 2 },
+  ];
+  const theme = styles[Math.abs(seed) % styles.length];
   const group = new THREE.Group();
-  const height = 3.1 + (seed % 3) * 0.85;
-  const depth = 7.2;
-  const wall = mat(theme.wall, { roughness: 0.78 });
-  const body = new THREE.Mesh(new THREE.BoxGeometry(3.1, height, depth), wall);
-  body.position.set(side * 9.3, height * 0.5, 0);
-  const roof = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.28, depth + 0.3), mat(theme.roof));
-  roof.position.set(side * 9.3, height + 0.12, 0);
-  const awning = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.08, 2.2), mat(theme.trim));
-  awning.position.set(side * 7.7, 1.7, -1.6);
-  const door = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.35, 0.7), mat('#3a2a22'));
-  door.position.set(side * 7.72, 0.7, -1.6);
-  const glass = mat('#d5e7f2', { roughness: 0.2, metalness: 0.05 });
-  group.add(body, roof, awning, door);
-  for (let row = 0; row < 2; row += 1) {
-    for (let col = 0; col < 3; col += 1) {
-      const win = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.7, 0.85), glass);
-      win.position.set(side * 7.68, 1.15 + row * 1.15, -0.2 + col * 1.7);
+  const height = 2.2 + theme.floors * 1.05;
+  const depth = 5.2;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(2.7, height, depth), mat(theme.wall, { roughness: 0.78 }));
+  body.position.set(side * 9.2, height * 0.5, z);
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(3, 0.24, depth + 0.25), mat(theme.roof));
+  roof.position.set(side * 9.2, height + 0.1, z);
+  const awning = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.08, 1.6), mat(theme.trim));
+  awning.position.set(side * 7.8, 1.55, z - 1.2);
+  const door = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.2, 0.62), mat('#3a2a22'));
+  door.position.set(side * 7.82, 0.62, z - 1.2);
+  const sign = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.42, 0.9), mat(theme.trim));
+  sign.position.set(side * 7.78, 2.15, z - 1.2);
+  group.add(body, roof, awning, door, sign);
+  const glass = mat('#d5e7f2', { roughness: 0.2 });
+  for (let row = 0; row < theme.floors; row += 1) {
+    for (let col = 0; col < 2; col += 1) {
+      const win = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.55, 0.7), glass);
+      win.position.set(side * 7.82, 1.05 + row * 1.05, z + 0.4 + col * 1.35);
       group.add(win);
     }
   }
+  if (theme.floors > 2) {
+    const chimney = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.7, 0.28), mat('#6a4038'));
+    chimney.position.set(side * 8.6, height + 0.45, z + 1.4);
+    group.add(chimney);
+  }
   return group;
+}
+
+function fillStreet(group, n) {
+  group.add(streetFacade(-1, n, -4.2));
+  group.add(streetFacade(-1, n + 3, 4.8));
+  group.add(streetFacade(1, n + 1, -3.6));
+  group.add(streetFacade(1, n + 4, 5.2));
+  group.add(lampPost(-1, 0.2));
+  group.add(lampPost(1, -0.4));
+  group.add(yardTree((n % 2 ? 1 : -1), 0.6));
+}
+
+function fillPark(group, n) {
+  const spots = [-6.2, -2.4, 1.8, 5.6];
+  spots.forEach((z, index) => {
+    const side = index % 2 === 0 ? -1 : 1;
+    const tree = yardTree(side, z);
+    tree.scale.setScalar(index % 3 === 0 ? 1.35 : 0.85);
+    group.add(tree);
+    const bush = new THREE.Mesh(new THREE.SphereGeometry(0.36, 8, 6), mat(index % 2 ? '#5f9a48' : '#7dae62'));
+    bush.position.set(side * 5.6, 0.28, z + 1.1);
+    group.add(bush);
+  });
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.12, 2.2), mat('#8d5a3a'));
+  roof.position.set((n % 2 ? 1 : -1) * 8.4, 2.15, 0);
+  group.add(roof);
+  for (const x of [-0.8, 0.8]) {
+    for (const z of [-0.7, 0.7]) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 2.1, 6), mat('#6b4a32'));
+      post.position.set((n % 2 ? 1 : -1) * 8.4 + x, 1.05, z);
+      group.add(post);
+    }
+  }
+}
+
+function fillMarket(group, n) {
+  const cloths = ['#d4544a', '#e0a030', '#3d6e8c', '#c45c4a'];
+  [-5.2, -1.2, 2.8, 6.2].forEach((z, index) => {
+    const side = index % 2 === 0 ? -1 : 1;
+    const stall = new THREE.Group();
+    const cloth = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.1, 1.8), mat(cloths[(n + index) % cloths.length]));
+    cloth.position.set(side * 8.2, 2.05, z);
+    const poleMat = mat('#5c3b2e');
+    for (const x of [-0.9, 0.9]) {
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 2, 6), poleMat);
+      pole.position.set(side * 8.2 + x, 1, z);
+      stall.add(pole);
+    }
+    const lantern = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), mat('#ffd978', { emissive: '#ffbf4a', emissiveIntensity: 0.45 }));
+    lantern.position.set(side * 7.2, 1.7, z + 0.2);
+    stall.add(cloth, lantern);
+    group.add(stall);
+  });
+}
+
+function makeSceneryBlock(n) {
+  const group = new THREE.Group();
+  group.userData.seed = n;
+  group.userData.mapId = '';
+  return group;
+}
+
+function dressBlock(block, mapId) {
+  if (block.userData.mapId === mapId) return;
+  clearGroup(block);
+  const n = block.userData.seed || 0;
+  if (mapId === 'park') fillPark(block, n);
+  else if (mapId === 'market') fillMarket(block, n);
+  else fillStreet(block, n);
+  block.userData.mapId = mapId;
 }
 
 function yardTree(side, z) {
@@ -930,26 +1106,6 @@ function lampPost(side, z) {
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), mat('#fff6d2', { emissive: '#fff1c2', emissiveIntensity: 0.35 }));
   head.position.set(side * 6.35, 2.45, z);
   group.add(pole, head);
-  return group;
-}
-
-function makeStreetBlock(n) {
-  const themes = [
-    { wall: '#f4e3c8', roof: '#c45c4a', trim: '#e07a5f' },
-    { wall: '#d9e6ee', roof: '#3d6e8c', trim: '#f4f7f8' },
-    { wall: '#f6d7a2', roof: '#8c5a3c', trim: '#6b8f71' },
-    { wall: '#efe8df', roof: '#5c6b73', trim: '#e8b84a' },
-  ];
-  const group = new THREE.Group();
-  group.add(facade(-1, themes[n % 4], n));
-  group.add(facade(1, themes[(n + 1) % 4], n + 2));
-  group.add(yardTree(-1, 5.2));
-  group.add(yardTree(1, -4.4));
-  group.add(lampPost(-1, -6.2));
-  group.add(lampPost(1, 6.4));
-  const bush = new THREE.Mesh(new THREE.SphereGeometry(0.28, 8, 6), mat('#7da86a'));
-  bush.position.set((n % 2 ? 1 : -1) * 6.7, 0.22, 0.4);
-  group.add(bush);
   return group;
 }
 
@@ -1029,7 +1185,8 @@ export function createGame(canvas, hooks) {
   const STREET_SPAN = 18;
   const street = [];
   for (let i = 0; i < 8; i += 1) {
-    const block = makeStreetBlock(i);
+    const block = makeSceneryBlock(i);
+    dressBlock(block, 'street');
     block.userData.home = (i - 1) * STREET_SPAN;
     block.position.z = block.userData.home;
     scene.add(block);
@@ -1045,7 +1202,6 @@ export function createGame(canvas, hooks) {
 
   let playerMats = [];
   let playerRig = null;
-  let playerSuit = null;
   let playerMic = null;
   let chaserRig = null;
   let modelReady = false;
@@ -1109,8 +1265,6 @@ export function createGame(canvas, hooks) {
     fitWidth(playerRig.root, 1.5);
     const villainBox = fitWidth(chaserRig.root, 1.78);
     player.add(playerRig.root);
-    playerSuit = makeSuit();
-    playerRig.root.add(playerSuit);
     playerMic = makeMic();
     playerRig.root.add(playerMic);
     chaser.add(chaserRig.root);
@@ -1246,6 +1400,55 @@ export function createGame(canvas, hooks) {
         continue;
       }
       const band = run.distance + (run.cursor - run.z);
+      const theme = mapOf(z);
+      if (theme === 'park') {
+        if (roll < 0.34) {
+          const blocked = lane();
+          spawn('boulder', 'high', z, blocked, 1.15);
+          coinLine(z + 2.2, (blocked + 1) % 3);
+          run.lastForced = 'high';
+        } else if (roll < 0.5) {
+          const open = lane();
+          for (let i = 0; i < 3; i += 1) if (i !== open) spawn('boulder', 'high', z, i, 1.15);
+          coinLine(z + 2.2, open);
+          run.lastForced = 'high';
+        } else if (roll < 0.66) {
+          spawn(roll < 0.58 ? 'log' : 'hedge-all', 'low', z, roll < 0.58 ? lane() : null, 0.9);
+          run.lastForced = 'low';
+        } else if (roll < 0.84 && band > 80 && !crowdsPit(z, 4)) {
+          const open = lane();
+          for (let i = 0; i < 3; i += 1) if (i !== open) spawn('pond', 'pit', z, i, 2.4);
+          coinLine(z + 3.2, open);
+          run.lastForced = 'fatal';
+        } else {
+          spawn('log', 'low', z, lane(), 1.2);
+          run.lastForced = 'low';
+        }
+        continue;
+      }
+      if (theme === 'market') {
+        if (roll < 0.36) {
+          const blocked = lane();
+          spawn('stall', 'high', z, blocked, 1.2);
+          coinLine(z + 2.2, (blocked + 1) % 3);
+          run.lastForced = 'high';
+        } else if (roll < 0.52) {
+          const open = lane();
+          for (let i = 0; i < 3; i += 1) if (i !== open) spawn('stall', 'high', z, i, 1.2);
+          coinLine(z + 2.2, open);
+          run.lastForced = 'high';
+        } else if (roll < 0.7) {
+          spawn('banner', 'low', z, lane(), 0.8);
+          run.lastForced = 'low';
+        } else if (roll < 0.86) {
+          spawn('cart', 'high', z, lane(), 1.6);
+          run.lastForced = 'high';
+        } else {
+          spawn('crate', 'crate', z, lane(), 1.1);
+          run.lastForced = '';
+        }
+        continue;
+      }
       if (roll < 0.36) {
         const blocked = lane();
         spawn('block', 'high', z, blocked, 1.05);
@@ -1270,11 +1473,12 @@ export function createGame(canvas, hooks) {
         const obj = spawn(styles[(Math.random() * 3) | 0], 'oncoming', z + 26, lane(), 8);
         obj.half = 0.95;
         obj.mesh.scale.z = 8 / 7.4;
+        run.cursor += speed * 0.65;
         run.lastForced = '';
         continue;
       }
       if (roll < 0.86 && band > 70 && !crowdsPit(z + 14, 28)) {
-        run.cursor = spawnRide(z, lane());
+        run.cursor = spawnRide(z, lane()) + speed * 0.65;
         run.lastForced = '';
         continue;
       }
@@ -1287,6 +1491,7 @@ export function createGame(canvas, hooks) {
       }
       if (band > 50 && !crowdsPit(z, 8)) {
         spawn('truck', 'fatal', z, lane(), 5.2);
+        run.cursor += speed * 0.65;
         run.lastForced = 'fatal';
         continue;
       }
@@ -1458,7 +1663,7 @@ export function createGame(canvas, hooks) {
     }
     hooks.onChuckle?.();
     run.gap = Math.min(run.gap, 6.5);
-    run.sprintT = 2.4;
+    run.sprintT = 0.8;
     run.chasePause = 0;
     run.iframes = 0.7;
   }
@@ -1583,7 +1788,6 @@ export function createGame(canvas, hooks) {
     if (hadPoop && run.poop <= 0) hooks.onPoop?.(false);
     run.shroom = Math.max(0, run.shroom - dt);
     run.noodle = Math.max(0, run.noodle - dt);
-    if (playerSuit) playerSuit.visible = run.noodle > 0 && run.fly <= 0;
     if (playerMic) playerMic.visible = run.boost > 0;
     run.board = Math.max(0, run.board - dt);
     run.stumble = Math.max(0, run.stumble - dt);
@@ -1618,31 +1822,43 @@ export function createGame(canvas, hooks) {
     if (run.phase === 'play') run.floor = ride.floor;
     const bodyY = run.fly > 0 ? 3.6 : run.mode === 'jumping' ? run.jumpBase + arc : run.floor;
     player.position.set(run.x, bodyY, run.z);
-    const phase = run.distance * 1.55;
-    const bob = run.mode === 'running' ? Math.abs(Math.sin(phase)) * 0.07 : 0;
+    const ham = heroId === 'tao';
+    const phase = run.distance * (ham ? 2.2 : 1.55);
+    const bob = run.mode === 'running' ? Math.abs(Math.sin(phase)) * (ham ? 0.2 : 0.07) : 0;
     player.rotation.order = 'YXZ';
     player.rotation.y = Math.PI;
-    player.rotation.z = (target - run.x) * -0.45;
+    player.rotation.z = (target - run.x) * (ham ? -0.9 : -0.45);
+    if (ham && run.mode === 'running') player.rotation.z += Math.sin(phase * 0.5) * 0.28;
     if (run.mode === 'sliding') {
       player.scale.set(1.08, 0.42, 1.2);
-      player.rotation.x = 0.12;
-      poseRig(playerRig, { legL: 0.7, legR: 0.7, armL: -0.45, armR: -0.45, head: 0.1, armZL: 0.12, armZR: -0.12 });
+      player.rotation.x = ham ? 0.42 : 0.12;
+      poseRig(playerRig, ham
+        ? { legL: 1.35, legR: 1.55, armL: -1.4, armR: 0.8, head: 0.55, armZL: 0.9, armZR: -1.1 }
+        : { legL: 0.7, legR: 0.7, armL: -0.45, armR: -0.45, head: 0.1, armZL: 0.12, armZR: -0.12 });
     } else if (run.mode === 'jumping') {
       const u = Math.min(1, run.modeT / 0.68);
       player.scale.set(1, 1, 1);
       if (u < 0.18) {
-        player.rotation.x = 0.2;
-        poseRig(playerRig, { legL: 0.8, legR: 0.8, armL: 0.4, armR: 0.4, head: 0.1, armZL: 0.2, armZR: -0.2 });
+        player.rotation.x = ham ? 0.55 : 0.2;
+        poseRig(playerRig, ham
+          ? { legL: 1.6, legR: 1.7, armL: 1.5, armR: 1.5, head: 0.4, armZL: 0.8, armZR: -0.8 }
+          : { legL: 0.8, legR: 0.8, armL: 0.4, armR: 0.4, head: 0.1, armZL: 0.2, armZR: -0.2 });
       } else if (u > 0.82) {
-        player.rotation.x = 0.16;
-        poseRig(playerRig, { legL: 0.55, legR: 0.55, armL: -0.2, armR: -0.2, head: 0.08, armZL: 0.1, armZR: -0.1 });
+        player.rotation.x = ham ? 0.48 : 0.16;
+        poseRig(playerRig, ham
+          ? { legL: 1.2, legR: 1.35, armL: -0.9, armR: -0.7, head: 0.35, armZL: 0.55, armZR: -0.4 }
+          : { legL: 0.55, legR: 0.55, armL: -0.2, armR: -0.2, head: 0.08, armZL: 0.1, armZR: -0.1 });
       } else {
-        player.rotation.x = -0.2;
-        poseRig(playerRig, { legL: -0.9, legR: -0.9, armL: 1.05, armR: 1.05, head: -0.15, armZL: 0.45, armZR: -0.45 });
+        player.rotation.x = ham ? -0.62 : -0.2;
+        player.rotation.z += ham ? Math.sin(run.modeT * 18) * 0.2 : 0;
+        poseRig(playerRig, ham
+          ? { legL: -1.7, legR: -1.85, armL: 1.9, armR: 1.9, head: -0.55, armZL: 1.15, armZR: -1.15 }
+          : { legL: -0.9, legR: -0.9, armL: 1.05, armR: 1.05, head: -0.15, armZL: 0.45, armZR: -0.45 });
       }
     } else {
       player.scale.set(1, 1, 1);
-      const stride = runAngles(phase);
+      const stride = ham ? taoRunAngles(phase) : runAngles(phase);
+      if (ham) player.rotation.x = 0.22 + Math.sin(phase) * 0.16;
       if (run.poop > 0) {
         const laugh = Math.sin(run.distance * 9);
         player.rotation.x = 0.22 + laugh * 0.16;
@@ -1656,7 +1872,7 @@ export function createGame(canvas, hooks) {
           armZR: -0.75,
         });
       } else {
-        player.rotation.x = 0.08;
+        if (!ham) player.rotation.x = 0.08;
         poseRig(playerRig, stride);
       }
       if (run.poop <= 0 && run.shroom > 0) {
@@ -1726,8 +1942,8 @@ export function createGame(canvas, hooks) {
     if (run.distance > 500) run.sprintCd -= dt;
     else run.sprintCd -= dt * 0.55;
     if (run.sprintCd <= 0) {
-      run.sprintT = 1.15;
-      run.sprintCd = run.distance > 500 ? 7.5 : 13;
+      run.sprintT = 0.55;
+      run.sprintCd = run.distance > 500 ? 12 : 18;
     }
     run.sprintT = Math.max(0, run.sprintT - dt);
     run.chasePause = Math.max(0, run.chasePause - dt);
@@ -1829,20 +2045,40 @@ export function createGame(canvas, hooks) {
   let laughTold = false;
 
   function applyLaugh(t, level, anchor) {
-    const bend = bendAt(Math.min(t, laughDur)) * 0.78;
-    const shake = Math.sin(t * 22) * (0.03 + level * 0.08);
-    player.rotation.set(bend, 0, shake);
+    if (heroId === 'dudu') {
+      const hop = Math.sin((t % 0.38) / 0.38 * Math.PI);
+      const up = hop * hop;
+      const crouch = 1 - hop;
+      player.rotation.set(crouch * 0.22 - up * 0.12, 0, 0);
+      player.scale.set(1, 1, 1);
+      player.position.set(anchor?.x ?? 0, up * 1.05, anchor?.z ?? 0);
+      poseRig(playerRig, {
+        legL: crouch * 1.25 - up * 0.85,
+        legR: crouch * 1.25 - up * 0.85,
+        armL: -0.15 - up * 1.35,
+        armR: -0.15 - up * 1.35,
+        armZL: 0.15,
+        armZR: -0.15,
+        head: up * 0.12,
+      });
+      return;
+    }
+    const ham = heroId === 'tao';
+    const bend = bendAt(Math.min(t, laughDur)) * (ham ? 1.45 : 0.78);
+    const shake = Math.sin(t * (ham ? 30 : 22)) * ((ham ? 0.16 : 0.03) + level * (ham ? 0.18 : 0.08));
+    player.rotation.set(bend, 0, shake + (ham ? Math.sin(t * 8) * 0.28 : 0));
     player.scale.set(1, 1, 1);
-    player.position.set(anchor?.x ?? 0, Math.abs(Math.sin(t * 16)) * 0.025, anchor?.z ?? 0);
-    const clutch = 0.55 + level * 0.45;
+    player.position.set(anchor?.x ?? 0, Math.abs(Math.sin(t * (ham ? 10 : 16))) * (ham ? 0.16 : 0.025), anchor?.z ?? 0);
+    const clutch = ham ? 1.55 + level * 0.35 : 0.55 + level * 0.45;
+    const nod = ham ? Math.sin(t * 16) * 0.45 : 0;
     poseRig(playerRig, {
-      legL: 0.12,
-      legR: -0.08,
-      armL: -0.25,
-      armR: -0.25,
+      legL: ham ? 0.85 + Math.sin(t * 12) * 0.55 : 0.12,
+      legR: ham ? -1.05 - Math.sin(t * 12) * 0.4 : -0.08,
+      armL: ham ? -1.35 : -0.25,
+      armR: ham ? -1.35 : -0.25,
       armZL: clutch,
       armZR: -clutch,
-      head: -0.28 - level * 0.2,
+      head: (ham ? -0.95 : -0.28) - level * (ham ? 0.4 : 0.2) + nod,
     });
   }
 
@@ -1881,15 +2117,27 @@ export function createGame(canvas, hooks) {
     track.material.map.offset.y = -run.z / 8;
     const span = STREET_SPAN * street.length;
     const back = run.z - 28;
+    const look = mapOf(run.z);
+    const sky = look === 'park' ? '#c6eb9c' : look === 'market' ? '#f2b27a' : '#9fd8f5';
+    const fog = look === 'park' ? '#d9f2c4' : look === 'market' ? '#f6d2b0' : '#b7dff6';
+    const ground = look === 'park' ? '#7eb85a' : look === 'market' ? '#d7b48a' : '#b7d39a';
+    const road = look === 'park' ? '#e4efd2' : look === 'market' ? '#f3d7b0' : '#ffffff';
+    scene.background.set(sky);
+    scene.fog.color.set(fog);
+    renderer.setClearColor(sky);
+    grass.material.color.set(ground);
+    track.material.color.set(road);
     for (const block of street) {
       let z = block.userData.home;
       while (z < back) z += span;
       block.position.z = z;
+      dressBlock(block, mapOf(z));
     }
   }
 
   function hud() {
     const effects = [];
+    if (run.phase === 'play') effects.push({ name: MAP_LABEL[mapOf(run.z)], t: 0 });
     if (run.magnet > 0) effects.push({ name: '磁力', t: run.magnet });
     if (run.shoes > 0) effects.push({ name: '加速', t: run.shoes });
     if (run.inv > 0) effects.push({ name: '无敌', t: run.inv });

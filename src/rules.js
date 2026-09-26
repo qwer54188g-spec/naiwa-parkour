@@ -28,10 +28,10 @@ export function comboMultiplier(cleanMeters) {
   return 1 + steps * 0.05;
 }
 
-/** 开局就比原来快，之后每 80 米再加快一档。 */
+/** 开局再快一档，之后每 80 米继续加快。 */
 export function baseSpeed(distance) {
   const steps = Math.floor(Math.max(0, distance) / 80);
-  return 14.5 * 1.08 ** steps;
+  return 18 * 1.08 ** steps;
 }
 
 /** 按这一碗所在位置的跑速，唱完 seconds 秒大概能跑多远。 */
@@ -88,9 +88,9 @@ export function stepChaser(gap, speed, dt, playerSpeed, distance, options) {
   const cruise = options.cruise ?? playerSpeed;
   const slow = Math.max(0, cruise - playerSpeed);
   let desired = playerSpeed + slow * 0.85 + (gap - targetGap) * 0.55;
-  if (options.sprint) desired += 5;
+  if (options.sprint) desired += 1.6;
   if (options.smoked) desired = Math.min(desired, playerSpeed * 0.82);
-  const accel = options.smoked ? 3 : 8.5;
+  const accel = options.smoked ? 1.6 : 3.2;
   const delta = Math.max(-accel * dt, Math.min(accel * dt, desired - speed));
   const nextSpeed = Math.max(0, speed + delta);
   let nextGap = gap + (playerSpeed - nextSpeed) * dt;

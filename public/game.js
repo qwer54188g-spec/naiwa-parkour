@@ -27692,7 +27692,7 @@ function createGame(canvas, hooks) {
     if (hadPoop && run.poop <= 0) hooks.onPoop?.(false);
     run.shroom = Math.max(0, run.shroom - dt);
     run.noodle = Math.max(0, run.noodle - dt);
-    if (playerSuit) playerSuit.visible = run.noodle > 0;
+    if (playerSuit) playerSuit.visible = run.noodle > 0 && run.fly <= 0;
     if (playerMic) playerMic.visible = run.boost > 0;
     run.board = Math.max(0, run.board - dt);
     run.stumble = Math.max(0, run.stumble - dt);

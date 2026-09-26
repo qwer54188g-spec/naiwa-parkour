@@ -16,7 +16,7 @@ import {
   stepChaser,
 } from './rules.js';
 
-/** 白碗是原来那段。后面两段音频按顺序，每两句一碗红碗。下一碗放在这两句快唱完的地方。 */
+/** 白碗是原来那段。后面两段音频按顺序，每两句一碗红碗。下一碗比这两句唱完再远一点点。 */
 const LYRIC_CLIPS = [
   { src: 'assets/noodle.m4a', start: 0, end: 3.75, red: false },
   { src: 'assets/lyric-a.m4a', start: 0, end: 7.8, red: true },
@@ -37,7 +37,7 @@ function lyricStops() {
   return LYRIC_CLIPS.map((clip) => {
     const stop = { ...clip, z };
     const ahead = coverDistance(z, clip.end - clip.start) - z;
-    z += ahead * 0.9;
+    z += ahead * 1.05;
     return stop;
   });
 }

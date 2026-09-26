@@ -26194,7 +26194,7 @@ function lyricStops() {
   return LYRIC_CLIPS.map((clip) => {
     const stop = { ...clip, z };
     const ahead = coverDistance(z, clip.end - clip.start) - z;
-    z += ahead * 0.9;
+    z += ahead * 1.05;
     return stop;
   });
 }

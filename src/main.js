@@ -6,6 +6,13 @@ const audio = createAudio();
 const laugh = document.querySelector('#laugh');
 const duduLine = document.querySelector('#dudu-line');
 const duduName = document.querySelector('#dudu-name');
+duduLine.addEventListener('ended', () => {
+  if (!shroomTalk) return;
+  shroomTalk = false;
+  if (!poopLaugh || !playing) return;
+  laugh.loop = true;
+  laugh.play()?.catch((error) => console.warn('naiwa.laugh', error));
+});
 const cast = document.querySelector('#cast');
 const castOpenBtn = document.querySelector('#cast-open');
 const castCloseBtn = document.querySelector('#cast-close');
@@ -71,6 +78,7 @@ let playing = false;
 let laughing = false;
 let armed = false;
 let poopLaugh = false;
+let shroomTalk = false;
 let chuckleTimer = 0;
 
 function stopChuckle() {
@@ -133,6 +141,7 @@ const game = createGame(document.querySelector('#view'), {
     useJetBtn.classList.toggle('on', playing && hud.jets > 0);
   },
   onChuckle() {
+    if (shroomTalk) return;
     stopChuckle();
     if (game.hero() === 'dudu') {
       laugh.pause();
@@ -163,13 +172,27 @@ const game = createGame(document.querySelector('#view'), {
       laugh.pause();
     }, 500);
   },
+  onShroom() {
+    shroomTalk = true;
+    laugh.pause();
+    duduName.pause();
+    duduLine.loop = false;
+    try {
+      duduLine.currentTime = 0;
+      const pending = duduLine.play();
+      if (pending && typeof pending.catch === 'function') pending.catch((error) => console.warn('naiwa.dudu', error));
+    } catch (error) {
+      console.warn('naiwa.dudu', error);
+    }
+  },
   onPoop(active) {
     poopLaugh = active;
     laugh.loop = active;
     if (!active) {
-      laugh.pause();
+      if (!shroomTalk) laugh.pause();
       return;
     }
+    if (shroomTalk) return;
     try {
       laugh.currentTime = 0;
       const pending = laugh.play();
@@ -182,6 +205,7 @@ const game = createGame(document.querySelector('#view'), {
   onDeath() {
     stopChuckle();
     poopLaugh = false;
+    shroomTalk = false;
     laugh.loop = false;
     laugh.pause();
     duduLine.pause();

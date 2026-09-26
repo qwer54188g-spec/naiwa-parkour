@@ -114,6 +114,7 @@ const ITEM_TABLE = [
   ['key', 6],
   ['chest', 8],
   ['poop', 36],
+  ['shroom', 22],
 ];
 
 /** 后程稀有道具权重下降。rand 返回 [0,1)。便便权重最高，保证路上经常能见到。 */
@@ -141,5 +142,6 @@ export function itemDuration(name) {
   if (name === 'double') return 10;
   if (name === 'jet') return 6;
   if (name === 'poop') return 6.1;
+  if (name === 'shroom') return 6;
   return 0;
 }

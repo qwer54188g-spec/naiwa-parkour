@@ -25004,7 +25004,8 @@ var ITEM_TABLE = [
   ["jet", 8],
   ["key", 6],
   ["chest", 8],
-  ["poop", 36]
+  ["poop", 36],
+  ["shroom", 22]
 ];
 function rollItem(distance, rand) {
   const late = Math.min(Math.max(distance, 0) / 500, 1);
@@ -25029,6 +25030,7 @@ function itemDuration(name) {
   if (name === "double") return 10;
   if (name === "jet") return 6;
   if (name === "poop") return 6.1;
+  if (name === "shroom") return 6;
   return 0;
 }
 
@@ -25139,6 +25141,7 @@ function buildMesh(type) {
   if (type === "key") return gem("#f4f1ea");
   if (type === "chest") return box(0.72, 0.5, 0.72, "#e0a030", 0.55);
   if (type === "poop") return poop();
+  if (type === "shroom") return mushroom();
   if (type === "pit") return pit();
   if (type === "crate") return plankCrate();
   if (type === "coin") return coin();
@@ -25391,6 +25394,31 @@ function poop() {
   group.userData.baseY = 1.2;
   return group;
 }
+function mushroom() {
+  const group = new Group();
+  const stem = new Mesh(new CylinderGeometry(0.16, 0.22, 0.46, 14), mat("#f4e4c4", { roughness: 0.7 }));
+  stem.position.y = 0.23;
+  const cap = new Mesh(new SphereGeometry(0.42, 18, 12, 0, Math.PI * 2, 0, Math.PI / 2), mat("#e23b2f", { roughness: 0.45 }));
+  cap.position.y = 0.42;
+  const brim = new Mesh(new CylinderGeometry(0.44, 0.44, 0.08, 18), mat("#f7f1e4", { roughness: 0.55 }));
+  brim.position.y = 0.42;
+  group.add(stem, cap, brim);
+  const spots = [
+    [0.12, 0.72, 0.18],
+    [-0.16, 0.66, 0.12],
+    [0.02, 0.78, -0.08],
+    [-0.08, 0.58, -0.22],
+    [0.2, 0.58, -0.06]
+  ];
+  for (const [x, y, z] of spots) {
+    const spot = new Mesh(new SphereGeometry(0.07, 10, 8), mat("#fffaf2"));
+    spot.position.set(x, y, z);
+    group.add(spot);
+  }
+  group.scale.setScalar(1.45);
+  group.userData.baseY = 1.15;
+  return group;
+}
 function coin() {
   const mesh = new Mesh(new CylinderGeometry(0.34, 0.34, 0.12, 18), mat("#ffd24a", { metalness: 0.35, roughness: 0.28 }));
   mesh.rotation.z = Math.PI / 2;
@@ -25499,6 +25527,29 @@ var PIVOT = {
   armR: [0.07, 0.36, 0],
   head: [0, 0.48, 0.01]
 };
+function paintUgly(rig) {
+  const geo = rig?.mesh?.geometry;
+  if (!geo || geo.userData.ugly) return;
+  const { rest, count } = rig;
+  const colors = new Float32Array(count * 3);
+  const palette = [
+    [0.78, 0.08, 0.95],
+    [0.05, 0.95, 0.18],
+    [0.08, 0.28, 1]
+  ];
+  for (let i = 0; i < count; i += 1) {
+    const x = rest[i * 3];
+    const y = rest[i * 3 + 1];
+    const z = rest[i * 3 + 2];
+    const n = Math.sin(x * 23) + Math.sin(y * 17) * 0.85 + Math.sin(z * 21) * 0.9;
+    const pick = n > 0.35 ? 0 : n < -0.35 ? 1 : 2;
+    colors[i * 3] = palette[pick][0];
+    colors[i * 3 + 1] = palette[pick][1];
+    colors[i * 3 + 2] = palette[pick][2];
+  }
+  geo.setAttribute("color", new BufferAttribute(colors, 3));
+  geo.userData.ugly = true;
+}
 function poseRig(rig, angles) {
   if (!rig) return;
   const { rest, count } = rig;
@@ -25715,12 +25766,14 @@ function freshRun() {
     bumps: 0,
     fly: 0,
     poop: 0,
+    shroom: 0,
     board: 0,
     chasePause: 0,
     doubleRest: false,
     cursor: 32,
     itemIn: 4,
     poopAt: 30,
+    shroomAt: 16,
     lastForced: "",
     shown: false
   };
@@ -25906,6 +25959,11 @@ function createGame(canvas, hooks) {
         placePoop(run.poopAt, Math.random() * 3 | 0);
         run.poopAt += 38;
       }
+      while (run.shroomAt < run.cursor - 6) {
+        const lane2 = run.shroomAt === 16 ? 1 : Math.random() * 3 | 0;
+        placeShroom(run.shroomAt, lane2);
+        run.shroomAt += 44;
+      }
       const z = run.cursor;
       const roll = Math.random();
       const lane = () => Math.random() * 3 | 0;
@@ -25976,6 +26034,12 @@ function createGame(canvas, hooks) {
     const useLane = taken ? (lane + 1) % 3 : lane;
     const obj = spawn("poop", "item", z, useLane, 0.8);
     obj.item = "poop";
+  }
+  function placeShroom(z, lane) {
+    const taken = active.some((obj2) => obj2.lane === lane && Math.abs(obj2.z - z) < 2.2 && obj2.kind !== "coin");
+    const useLane = taken ? (lane + 2) % 3 : lane;
+    const obj = spawn("shroom", "item", z, useLane, 0.8);
+    obj.item = "shroom";
   }
   function maybeItem(dt) {
     run.itemIn -= dt;
@@ -26127,6 +26191,10 @@ function createGame(canvas, hooks) {
       run.poop = itemDuration(name);
       hooks.onPoop?.(true);
     }
+    if (name === "shroom") {
+      run.shroom = itemDuration(name);
+      hooks.onShroom?.();
+    }
     if (name === "key") writeKeys(readKeys() + 1);
     if (name === "chest") {
       const roll = Math.random();
@@ -26151,6 +26219,7 @@ function createGame(canvas, hooks) {
     const hadPoop = run.poop > 0;
     run.poop = Math.max(0, run.poop - dt);
     if (hadPoop && run.poop <= 0) hooks.onPoop?.(false);
+    run.shroom = Math.max(0, run.shroom - dt);
     run.board = Math.max(0, run.board - dt);
     run.stumble = Math.max(0, run.stumble - dt);
     const target = LANES[run.lane];
@@ -26225,20 +26294,53 @@ function createGame(canvas, hooks) {
         player.rotation.x = 0.08;
         poseRig(playerRig, stride);
       }
+      if (run.poop <= 0 && run.shroom > 0) {
+        const talk = Math.sin(run.distance * 14);
+        player.rotation.x = 0.04;
+        poseRig(playerRig, {
+          legL: stride.legL,
+          legR: stride.legR,
+          armL: stride.armL,
+          armR: stride.armR,
+          head: talk * 0.2,
+          armZL: stride.armZL,
+          armZR: stride.armZR
+        });
+      }
     }
     player.position.y += bob;
     shadow.position.set(run.x, run.floor + 0.04, run.z);
     shadow.scale.setScalar(run.mode === "jumping" ? 0.7 : 1);
     const pulse = run.inv > 0 ? 0.55 + Math.sin(run.distance) * 0.15 : 0;
     for (const item of playerMats) {
-      if (run.poop > 0) {
-        item.color.set("#6b3a1a");
-        item.emissive.set("#4a2810");
-        item.emissiveIntensity = 0.18;
-      } else {
+      if (run.shroom > 0) {
+        paintUgly(playerRig);
+        if (!item.userData.uglyOn) {
+          item.userData.prevMap = item.map || null;
+          item.userData.uglyOn = true;
+        }
+        item.map = null;
+        item.vertexColors = true;
         item.color.set("#ffffff");
-        item.emissive.set("#ffe08a");
-        item.emissiveIntensity = pulse;
+        item.emissive.set("#000000");
+        item.emissiveIntensity = 0;
+        item.needsUpdate = true;
+      } else {
+        if (item.userData.uglyOn) {
+          item.map = item.userData.prevMap || null;
+          item.vertexColors = false;
+          item.userData.uglyOn = false;
+          item.needsUpdate = true;
+        }
+        if (run.poop > 0) {
+          item.color.set("#6b3a1a");
+          item.emissive.set("#4a2810");
+          item.emissiveIntensity = 0.18;
+        } else {
+          item.color.set("#ffffff");
+          item.emissive.set("#ffe08a");
+          item.emissiveIntensity = pulse;
+        }
       }
     }
     glow.intensity = run.inv > 0 ? 4 : 0;
@@ -26408,6 +26510,7 @@ function createGame(canvas, hooks) {
     if (run.doubleT > 0 || run.doubleRest) effects.push({ name: "\u53CC\u500D", t: run.doubleRest ? 0 : run.doubleT });
     if (run.fly > 0) effects.push({ name: "\u98DE\u884C", t: run.fly });
     if (run.poop > 0) effects.push({ name: "\u4FBF\u4FBF", t: run.poop });
+    if (run.shroom > 0) effects.push({ name: "\u8611\u83C7", t: run.shroom });
     if (run.board > 0) effects.push({ name: "\u6ED1\u677F", t: run.board });
     hooks.onHud({
       score: Math.floor(run.score),
@@ -26647,6 +26750,13 @@ var audio = createAudio();
 var laugh = document.querySelector("#laugh");
 var duduLine = document.querySelector("#dudu-line");
 var duduName = document.querySelector("#dudu-name");
+duduLine.addEventListener("ended", () => {
+  if (!shroomTalk) return;
+  shroomTalk = false;
+  if (!poopLaugh || !playing) return;
+  laugh.loop = true;
+  laugh.play()?.catch((error) => console.warn("naiwa.laugh", error));
+});
 var cast = document.querySelector("#cast");
 var castOpenBtn = document.querySelector("#cast-open");
 var castCloseBtn = document.querySelector("#cast-close");
@@ -26704,6 +26814,7 @@ var playing = false;
 var laughing = false;
 var armed = false;
 var poopLaugh = false;
+var shroomTalk = false;
 var chuckleTimer = 0;
 function stopChuckle() {
   if (!chuckleTimer) return;
@@ -26760,6 +26871,7 @@ var game = createGame(document.querySelector("#view"), {
     useJetBtn.classList.toggle("on", playing && hud.jets > 0);
   },
   onChuckle() {
+    if (shroomTalk) return;
     stopChuckle();
     if (game.hero() === "dudu") {
       laugh.pause();
@@ -26790,13 +26902,27 @@ var game = createGame(document.querySelector("#view"), {
       laugh.pause();
     }, 500);
   },
+  onShroom() {
+    shroomTalk = true;
+    laugh.pause();
+    duduName.pause();
+    duduLine.loop = false;
+    try {
+      duduLine.currentTime = 0;
+      const pending = duduLine.play();
+      if (pending && typeof pending.catch === "function") pending.catch((error) => console.warn("naiwa.dudu", error));
+    } catch (error) {
+      console.warn("naiwa.dudu", error);
+    }
+  },
   onPoop(active) {
     poopLaugh = active;
     laugh.loop = active;
     if (!active) {
-      laugh.pause();
+      if (!shroomTalk) laugh.pause();
       return;
     }
+    if (shroomTalk) return;
     try {
       laugh.currentTime = 0;
       const pending = laugh.play();
@@ -26809,6 +26935,7 @@ var game = createGame(document.querySelector("#view"), {
   onDeath() {
     stopChuckle();
     poopLaugh = false;
+    shroomTalk = false;
     laugh.loop = false;
     laugh.pause();
     duduLine.pause();

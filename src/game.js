@@ -134,6 +134,7 @@ function buildMesh(type) {
   if (type === 'chest') return box(0.72, 0.5, 0.72, '#e0a030', 0.55);
   if (type === 'poop') return poop();
   if (type === 'shroom') return mushroom();
+  if (type === 'noodle') return noodleBowl();
   if (type === 'pit') return pit();
   if (type === 'crate') return plankCrate();
   if (type === 'coin') return coin();
@@ -328,6 +329,7 @@ function poop() {
   crease.position.set(-0.16, 0.46, 0.22);
   group.add(base, mid, top, curl, crease);
   group.scale.setScalar(1.55);
+  group.userData.homeScale = 1.55;
   group.userData.baseY = 1.2;
   return group;
 }
@@ -354,8 +356,100 @@ function mushroom() {
     group.add(spot);
   }
   group.scale.setScalar(1.45);
+  group.userData.homeScale = 1.45;
   group.userData.baseY = 1.15;
   return group;
+}
+
+function noodleBowl() {
+  const group = new THREE.Group();
+  const bowl = new THREE.Mesh(
+    new THREE.SphereGeometry(0.46, 28, 16, 0, Math.PI * 2, Math.PI * 0.5, Math.PI * 0.5),
+    mat('#f4efe4', { roughness: 0.28 }),
+  );
+  bowl.scale.set(1.15, 0.85, 1.15);
+  bowl.position.y = 0.36;
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.52, 0.045, 8, 28), mat('#fffdf8'));
+  rim.rotation.x = Math.PI / 2;
+  rim.position.y = 0.38;
+  const lip = new THREE.Mesh(new THREE.TorusGeometry(0.49, 0.016, 6, 24), mat('#d23b2c'));
+  lip.rotation.x = Math.PI / 2;
+  lip.position.y = 0.41;
+  const broth = new THREE.Mesh(new THREE.CircleGeometry(0.4, 24), mat('#d06a28', { roughness: 0.4 }));
+  broth.rotation.x = -Math.PI / 2;
+  broth.position.y = 0.3;
+  group.add(bowl, rim, lip, broth);
+  const noodleMat = mat('#f2c84a', { roughness: 0.7 });
+  for (let i = 0; i < 14; i += 1) {
+    const strand = new THREE.Mesh(new THREE.TorusGeometry(0.1 + (i % 3) * 0.02, 0.012, 5, 12, Math.PI * 1.2), noodleMat);
+    const turn = (i / 14) * Math.PI * 2;
+    strand.position.set(Math.cos(turn) * 0.1, 0.36 + (i % 5) * 0.035, Math.sin(turn) * 0.08);
+    strand.rotation.set(0.2 + (i % 5) * 0.35, turn, (i % 4) * 0.4);
+    group.add(strand);
+  }
+  const beefMat = mat('#7c2c1e', { roughness: 0.4 });
+  const slices = [
+    [0.12, 0.5, 0.04, 0.4],
+    [-0.12, 0.52, -0.02, -0.5],
+    [0.0, 0.56, 0.1, 0.9],
+  ];
+  for (const [x, y, z, rot] of slices) {
+    const beef = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 8), beefMat);
+    beef.scale.set(1.55, 0.22, 1.05);
+    beef.position.set(x, y, z);
+    beef.rotation.set(-0.4, rot, 0.2);
+    group.add(beef);
+  }
+  const onion = mat('#2f9a34');
+  for (const [x, z, rot] of [[0.18, 0.02, 0.4], [-0.16, 0.1, -0.6], [0.02, -0.16, 1.2], [0.08, 0.14, 0.2]]) {
+    const bit = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.018, 0.1), onion);
+    bit.position.set(x, 0.48, z);
+    bit.rotation.y = rot;
+    group.add(bit);
+  }
+  group.scale.setScalar(1.9);
+  group.userData.homeScale = 1.9;
+  group.userData.baseY = 0.95;
+  return group;
+}
+
+function makeSuit() {
+  const suit = new THREE.Group();
+  suit.name = 'suit';
+  suit.visible = false;
+  const jacketMat = mat('#1a4ed0', { roughness: 0.4 });
+  const pantsMat = mat('#12368f', { roughness: 0.48 });
+  const shirtMat = mat('#f6f7f8', { roughness: 0.5 });
+  const bowMat = mat('#161616', { roughness: 0.35 });
+  const jacket = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 18), jacketMat);
+  jacket.scale.set(0.34, 0.16, 0.28);
+  jacket.position.set(0, 0.3, 0);
+  const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.1, 0.28, 10), pantsMat);
+  legL.position.set(-0.1, 0.14, 0);
+  const legR = legL.clone();
+  legR.position.x = 0.1;
+  const sleeveL = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.16, 4, 8), jacketMat);
+  sleeveL.rotation.z = 0.9;
+  sleeveL.position.set(-0.3, 0.3, 0);
+  const sleeveR = sleeveL.clone();
+  sleeveR.rotation.z = -0.9;
+  sleeveR.position.x = 0.32;
+  const collar = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.03, 8, 16), shirtMat);
+  collar.rotation.x = Math.PI / 2;
+  collar.position.set(0, 0.48, 0);
+  const collarBack = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.08, 0.05), shirtMat);
+  collarBack.position.set(0, 0.46, 0.14);
+  const shirt = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.18, 0.06), shirtMat);
+  shirt.position.set(0, 0.36, -0.3);
+  const bowL = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), bowMat);
+  bowL.scale.set(1.7, 0.65, 0.45);
+  bowL.position.set(-0.055, 0.47, -0.28);
+  const bowR = bowL.clone();
+  bowR.position.x = 0.055;
+  const knot = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.035, 0.03), bowMat);
+  knot.position.set(0, 0.47, -0.3);
+  suit.add(legL, legR, jacket, sleeveL, sleeveR, collar, collarBack, shirt, bowL, bowR, knot);
+  return suit;
 }
 
 function coin() {
@@ -748,6 +842,7 @@ function freshRun() {
     fly: 0,
     poop: 0,
     shroom: 0,
+    noodle: 0,
     board: 0,
     chasePause: 0,
     doubleRest: false,
@@ -755,6 +850,7 @@ function freshRun() {
     itemIn: 4,
     poopAt: 30,
     shroomAt: 16,
+    noodleAt: 10,
     lastForced: '',
     shown: false,
   };
@@ -803,6 +899,7 @@ export function createGame(canvas, hooks) {
 
   let playerMats = [];
   let playerRig = null;
+  let playerSuit = null;
   let chaserRig = null;
   let modelReady = false;
   let heroId = readHero();
@@ -853,6 +950,8 @@ export function createGame(canvas, hooks) {
     fitWidth(playerRig.root, 1.5);
     const villainBox = fitWidth(chaserRig.root, 1.78);
     player.add(playerRig.root);
+    playerSuit = makeSuit();
+    playerRig.root.add(playerSuit);
     chaser.add(chaserRig.root);
     const hat = makeHat();
     hat.position.y = villainBox.max.y + 0.02;
@@ -881,7 +980,8 @@ export function createGame(canvas, hooks) {
     pools.set(type, pool);
     const mesh = pool.pop() || buildMesh(type);
     mesh.visible = true;
-    mesh.scale.set(1, 1, 1);
+    const home = mesh.userData.homeScale || 1;
+    mesh.scale.set(home, home, home);
     mesh.rotation.set(0, 0, 0);
     if (type === 'coin') mesh.rotation.z = Math.PI / 2;
     if (type === 'pit') mesh.rotation.x = -Math.PI / 2;
@@ -961,6 +1061,11 @@ export function createGame(canvas, hooks) {
         placeShroom(run.shroomAt, lane);
         run.shroomAt += 44;
       }
+      while (run.noodleAt < run.cursor - 6) {
+        const lane = run.noodleAt === 10 ? 1 : (Math.random() * 3) | 0;
+        placeNoodle(run.noodleAt, lane);
+        run.noodleAt += 52;
+      }
       const z = run.cursor;
       const roll = Math.random();
       const lane = () => (Math.random() * 3) | 0;
@@ -1039,6 +1144,13 @@ export function createGame(canvas, hooks) {
     const useLane = taken ? (lane + 2) % 3 : lane;
     const obj = spawn('shroom', 'item', z, useLane, 0.8);
     obj.item = 'shroom';
+  }
+
+  function placeNoodle(z, lane) {
+    const taken = active.some((obj) => obj.lane === lane && Math.abs(obj.z - z) < 2.2 && obj.kind !== 'coin');
+    const useLane = taken ? (lane + 1) % 3 : lane;
+    const obj = spawn('noodle', 'item', z, useLane, 0.9);
+    obj.item = 'noodle';
   }
 
   function maybeItem(dt) {
@@ -1202,6 +1314,10 @@ export function createGame(canvas, hooks) {
       run.shroom = itemDuration(name);
       hooks.onShroom?.();
     }
+    if (name === 'noodle') {
+      run.noodle = itemDuration(name);
+      hooks.onNoodle?.();
+    }
     if (name === 'key') writeKeys(readKeys() + 1);
     if (name === 'chest') {
       const roll = Math.random();
@@ -1228,6 +1344,8 @@ export function createGame(canvas, hooks) {
     run.poop = Math.max(0, run.poop - dt);
     if (hadPoop && run.poop <= 0) hooks.onPoop?.(false);
     run.shroom = Math.max(0, run.shroom - dt);
+    run.noodle = Math.max(0, run.noodle - dt);
+    if (playerSuit) playerSuit.visible = run.noodle > 0;
     run.board = Math.max(0, run.board - dt);
     run.stumble = Math.max(0, run.stumble - dt);
     const target = LANES[run.lane];
@@ -1321,7 +1439,17 @@ export function createGame(canvas, hooks) {
     shadow.scale.setScalar(run.mode === 'jumping' ? 0.7 : 1);
     const pulse = run.inv > 0 ? 0.55 + Math.sin(run.distance) * 0.15 : 0;
     for (const item of playerMats) {
-      if (run.shroom > 0) {
+      if (run.noodle > 0) {
+        if (item.userData.uglyOn) {
+          item.map = item.userData.prevMap || null;
+          item.vertexColors = false;
+          item.userData.uglyOn = false;
+          item.needsUpdate = true;
+        }
+        item.color.set('#ffffff');
+        item.emissive.set('#ffe08a');
+        item.emissiveIntensity = 0;
+      } else if (run.shroom > 0) {
         paintUgly(playerRig);
         if (!item.userData.uglyOn) {
           item.userData.prevMap = item.map || null;
@@ -1386,8 +1514,8 @@ export function createGame(canvas, hooks) {
     const time = clock.elapsedTime;
     for (const obj of active) {
       const base = obj.mesh.userData.baseY || 0;
-      if (obj.kind === 'coin' || obj.kind === 'item') {
-        obj.mesh.rotation.y += dt * 2.4;
+        if (obj.kind === 'coin' || obj.kind === 'item') {
+        if (obj.item !== 'noodle') obj.mesh.rotation.y += dt * 2.4;
         obj.mesh.position.y = base + Math.sin(time * 3 + obj.z) * 0.12;
       }
       if (obj.kind === 'oncoming') {
@@ -1530,6 +1658,7 @@ export function createGame(canvas, hooks) {
     if (run.fly > 0) effects.push({ name: '飞行', t: run.fly });
     if (run.poop > 0) effects.push({ name: '便便', t: run.poop });
     if (run.shroom > 0) effects.push({ name: '蘑菇', t: run.shroom });
+    if (run.noodle > 0) effects.push({ name: '牛肉面', t: run.noodle });
     if (run.board > 0) effects.push({ name: '滑板', t: run.board });
     hooks.onHud({
       score: Math.floor(run.score),

@@ -6,9 +6,17 @@ const audio = createAudio();
 const laugh = document.querySelector('#laugh');
 const duduLine = document.querySelector('#dudu-line');
 const duduName = document.querySelector('#dudu-name');
+const noodle = document.querySelector('#noodle');
 duduLine.addEventListener('ended', () => {
   if (!shroomTalk) return;
   shroomTalk = false;
+  if (!poopLaugh || !playing || noodleTalk) return;
+  laugh.loop = true;
+  laugh.play()?.catch((error) => console.warn('naiwa.laugh', error));
+});
+noodle.addEventListener('ended', () => {
+  if (!noodleTalk) return;
+  noodleTalk = false;
   if (!poopLaugh || !playing) return;
   laugh.loop = true;
   laugh.play()?.catch((error) => console.warn('naiwa.laugh', error));
@@ -79,6 +87,7 @@ let laughing = false;
 let armed = false;
 let poopLaugh = false;
 let shroomTalk = false;
+let noodleTalk = false;
 let chuckleTimer = 0;
 
 function stopChuckle() {
@@ -141,7 +150,7 @@ const game = createGame(document.querySelector('#view'), {
     useJetBtn.classList.toggle('on', playing && hud.jets > 0);
   },
   onChuckle() {
-    if (shroomTalk) return;
+    if (shroomTalk || noodleTalk) return;
     stopChuckle();
     if (game.hero() === 'dudu') {
       laugh.pause();
@@ -172,6 +181,21 @@ const game = createGame(document.querySelector('#view'), {
       laugh.pause();
     }, 500);
   },
+  onNoodle() {
+    noodleTalk = true;
+    shroomTalk = false;
+    laugh.pause();
+    duduLine.pause();
+    duduName.pause();
+    noodle.loop = false;
+    try {
+      noodle.currentTime = 0;
+      const pending = noodle.play();
+      if (pending && typeof pending.catch === 'function') pending.catch((error) => console.warn('naiwa.noodle', error));
+    } catch (error) {
+      console.warn('naiwa.noodle', error);
+    }
+  },
   onShroom() {
     shroomTalk = true;
     laugh.pause();
@@ -189,10 +213,10 @@ const game = createGame(document.querySelector('#view'), {
     poopLaugh = active;
     laugh.loop = active;
     if (!active) {
-      if (!shroomTalk) laugh.pause();
+      if (!shroomTalk && !noodleTalk) laugh.pause();
       return;
     }
-    if (shroomTalk) return;
+    if (shroomTalk || noodleTalk) return;
     try {
       laugh.currentTime = 0;
       const pending = laugh.play();
@@ -206,10 +230,12 @@ const game = createGame(document.querySelector('#view'), {
     stopChuckle();
     poopLaugh = false;
     shroomTalk = false;
+    noodleTalk = false;
     laugh.loop = false;
     laugh.pause();
     duduLine.pause();
     duduName.pause();
+    noodle.pause();
     playing = false;
     document.body.classList.remove('live', 'over', 'intro');
     document.body.classList.add('ending');
@@ -234,6 +260,7 @@ const game = createGame(document.querySelector('#view'), {
     laugh.pause();
     duduLine.pause();
     duduName.pause();
+    noodle.pause();
     document.body.classList.remove('live', 'ending', 'intro');
     document.body.classList.add('over');
     document.querySelector('#over-title').textContent = titles[info.reason] || '这局结束了';
@@ -285,6 +312,7 @@ function begin() {
   laugh.pause();
   duduLine.pause();
   duduName.pause();
+  noodle.pause();
   document.body.classList.remove('over', 'intro', 'ending');
   document.body.classList.add('live');
   closeStore();

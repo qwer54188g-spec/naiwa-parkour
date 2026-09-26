@@ -65,5 +65,7 @@ test('200 金币换一把钥匙，便便会经常被抽到', () => {
   for (let i = 0; i < 40; i += 1) if (rollItem(0, rand) === 'poop') poops += 1;
   assert.ok(poops >= 8, `expected poop often, got ${poops}`);
   assert.equal(itemDuration('shroom'), 6);
-  assert.equal(rollItem(0, () => 0.99), 'shroom');
+  assert.equal(itemDuration('noodle'), 4.6);
+  assert.equal(rollItem(0, () => 0.8), 'shroom');
+  assert.equal(rollItem(0, () => 0.99), 'noodle');
 });

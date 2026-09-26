@@ -28270,6 +28270,7 @@ var duduName = document.querySelector("#dudu-name");
 var noodle = document.querySelector("#noodle");
 var taoLine = document.querySelector("#tao-line");
 var taoDeath = document.querySelector("#tao-death");
+var taoBoost = document.querySelector("#tao-boost");
 duduLine.addEventListener("ended", () => {
   if (!shroomTalk) return;
   shroomTalk = false;
@@ -28302,13 +28303,16 @@ var againBtn = document.querySelector("#again");
 var reviveBtn = document.querySelector("#revive");
 var buyBtn = document.querySelector("#buy");
 var buyJetBtn = document.querySelector("#buy-jet");
+var buyBoostBtn = document.querySelector("#buy-boost");
 var useJetBtn = document.querySelector("#use-jet");
+var useBoostBtn = document.querySelector("#use-boost");
 var shopOpenBtn = document.querySelector("#shop-open");
 var store = document.querySelector("#store");
 var storeCloseBtn = document.querySelector("#store-close");
 var walletLine = document.querySelector("#wallet");
 var buyNote = document.querySelector("#buy-note");
 var jetNote = document.querySelector("#jet-note");
+var boostNote = document.querySelector("#boost-note");
 var vignette = document.querySelector("#vignette");
 var titles = {
   caught: "\u88AB\u540E\u9762\u90A3\u53EA\u5976\u86D9\u6293\u4F4F\u4E86",
@@ -28318,15 +28322,20 @@ var titles = {
 };
 function paintShop() {
   const pocket = game.wallet();
-  walletLine.textContent = `\u91D1\u5E01 ${pocket.coins} \xB7 \u94A5\u5319 ${pocket.keys} \xB7 \u98DE\u884C ${pocket.jets}`;
+  walletLine.textContent = `\u91D1\u5E01 ${pocket.coins} \xB7 \u94A5\u5319 ${pocket.keys} \xB7 \u98DE\u884C ${pocket.jets} \xB7 \u52A0\u901F ${pocket.boosts}`;
   const keyEnough = pocket.coins >= KEY_PRICE;
   const jetEnough = pocket.coins >= JET_PRICE;
+  const boostEnough = pocket.coins >= BOOST_PRICE;
   buyBtn.disabled = !keyEnough;
   buyJetBtn.disabled = !jetEnough;
+  buyBoostBtn.disabled = !boostEnough;
   buyNote.textContent = keyEnough ? "" : "\u91D1\u5E01\u4E0D\u591F";
   jetNote.textContent = jetEnough ? "" : "\u91D1\u5E01\u4E0D\u591F";
+  boostNote.textContent = boostEnough ? "" : "\u91D1\u5E01\u4E0D\u591F";
   useJetBtn.textContent = `\u98DE\u884C ${pocket.jets}`;
   useJetBtn.classList.toggle("on", playing && pocket.jets > 0);
+  useBoostBtn.textContent = `\u8BDD\u7B52 ${pocket.boosts}`;
+  useBoostBtn.classList.toggle("on", playing && game.hero() === "tao" && pocket.boosts > 0);
 }
 function paintCast() {
   const current = game.hero();
@@ -28348,6 +28357,7 @@ function silenceVoices() {
   noodle.pause();
   taoLine.pause();
   taoDeath.pause();
+  taoBoost.pause();
 }
 function signatureOf(hero) {
   if (hero === "dudu") return duduLine;
@@ -28440,6 +28450,8 @@ var game = createGame(document.querySelector("#view"), {
     if (reviveBtn) reviveBtn.textContent = hud.keys > 0 ? `\u7528\u94A5\u5319\u590D\u6D3B\uFF08${hud.keys}\uFF09` : "\u6CA1\u6709\u94A5\u5319";
     useJetBtn.textContent = `\u98DE\u884C ${hud.jets}`;
     useJetBtn.classList.toggle("on", playing && hud.jets > 0);
+    useBoostBtn.textContent = `\u8BDD\u7B52 ${hud.boosts}`;
+    useBoostBtn.classList.toggle("on", playing && hud.hero === "tao" && hud.boosts > 0);
   },
   onChuckle() {
     if (shroomTalk || noodleTalk || game.hero() === "tao") return;
@@ -28543,6 +28555,7 @@ var game = createGame(document.querySelector("#view"), {
     document.body.classList.remove("live", "over", "intro");
     document.body.classList.add("ending");
     useJetBtn.classList.remove("on");
+    useBoostBtn.classList.remove("on");
   },
   onDeathLaugh() {
     const hero = game.hero();
@@ -28671,8 +28684,32 @@ buyJetBtn.addEventListener("click", () => {
   game.buyJet();
   paintShop();
 });
+buyBoostBtn.addEventListener("click", () => {
+  game.buyBoost();
+  paintShop();
+});
 useJetBtn.addEventListener("click", () => {
   if (!game.useJet()) return;
+  paintShop();
+});
+useBoostBtn.addEventListener("click", () => {
+  const dur = Number.isFinite(taoBoost.duration) && taoBoost.duration > 0.4 ? taoBoost.duration : 8.6;
+  if (!game.useBoost(dur)) return;
+  laugh.pause();
+  duduLine.pause();
+  duduName.pause();
+  noodle.pause();
+  noodleTalk = false;
+  taoLine.pause();
+  taoDeath.pause();
+  taoBoost.loop = false;
+  try {
+    taoBoost.currentTime = 0;
+    const pending = taoBoost.play();
+    if (pending && typeof pending.catch === "function") pending.catch((error) => console.warn("naiwa.boost", error));
+  } catch (error) {
+    console.warn("naiwa.boost", error);
+  }
   paintShop();
 });
 againBtn.addEventListener("click", begin);

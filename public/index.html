@@ -88,8 +88,8 @@
       }
       #hint {
         position: fixed;
-        left: 0;
-        right: 0;
+        left: 12px;
+        right: 96px;
         bottom: calc(18px + env(safe-area-inset-bottom));
         text-align: center;
         font-weight: 800;
@@ -208,6 +208,8 @@
       body.live #store, body.intro #store { display: none; }
       #store-card {
         width: min(360px, 100%);
+        max-height: min(86vh, 640px);
+        overflow: auto;
         background: var(--cream);
         border: 3px solid var(--line);
         border-radius: 18px;
@@ -250,21 +252,27 @@
       #goods { display: flex; flex-direction: column; gap: 10px; }
       .good > button { grid-column: 1 / -1; margin-top: 6px; }
       .buy-note { grid-column: 1 / -1; margin: 0; font-size: 13px; font-weight: 800; text-align: center; min-height: 1.2em; }
-      #use-jet {
+      #uses {
         position: fixed;
-        top: calc(16px + env(safe-area-inset-top));
-        right: 14px;
-        z-index: 4;
-        width: 72px;
-        height: 72px;
-        min-height: 72px;
+        right: 12px;
+        bottom: calc(16px + env(safe-area-inset-bottom));
+        z-index: 5;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-end;
+      }
+      #uses button {
+        width: 74px;
+        height: 74px;
+        min-height: 74px;
         padding: 6px;
         border-radius: 18px;
-        display: none;
-        font-size: 14px;
+        font-size: 15px;
         line-height: 1.15;
+        display: none;
       }
-      body.live #use-jet.on { display: flex; align-items: center; justify-content: center; }
+      body.live #uses button.on { display: flex; align-items: center; justify-content: center; }
     </style>
   </head>
   <body>
@@ -285,7 +293,11 @@
     <audio id="noodle" preload="auto" src="assets/noodle.m4a"></audio>
     <audio id="tao-line" preload="auto" src="assets/noodle.m4a"></audio>
     <audio id="tao-death" preload="auto" src="assets/tao-death.m4a"></audio>
-    <button id="use-jet" type="button">飞行</button>
+    <audio id="tao-boost" preload="auto" src="assets/tao-boost.m4a"></audio>
+    <div id="uses">
+      <button id="use-boost" type="button">话筒</button>
+      <button id="use-jet" type="button">飞行</button>
+    </div>
     <button id="cast-open" type="button">角色</button>
     <div id="cast">
       <div id="cast-card">
@@ -311,7 +323,7 @@
           <h2>商店</h2>
           <button id="store-close" type="button">关闭</button>
         </div>
-        <p id="wallet">金币 0 · 钥匙 0 · 飞行 0</p>
+        <p id="wallet">金币 0 · 钥匙 0 · 飞行 0 · 加速 0</p>
         <div id="goods">
           <div class="good">
             <strong>钥匙</strong>
@@ -326,6 +338,13 @@
             <span class="note">在半空里跑一段</span>
             <button id="buy-jet" type="button">购买</button>
             <p class="buy-note" id="jet-note"></p>
+          </div>
+          <div class="good">
+            <strong>加速</strong>
+            <span class="price">500<small>金币</small></span>
+            <span class="note">话筒。马健涛用了就放加快版，唱完之前不会死</span>
+            <button id="buy-boost" type="button">购买</button>
+            <p class="buy-note" id="boost-note"></p>
           </div>
         </div>
       </div>
@@ -348,6 +367,6 @@
         <button id="again" class="ghost" type="button">再来一次</button>
       </div>
     </section>
-    <script type="module" src="./game.js?v=32"></script>
+    <script type="module" src="./game.js?v=33"></script>
   </body>
 </html>
